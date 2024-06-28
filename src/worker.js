@@ -10,7 +10,7 @@ let proxyIP = arrlist[Math.floor(Math.random() * arrlist.length)];
 let enablePassword = "a1234567"; // 明文密码，没有经过sha224加密的密码
 let sha224Password = hash224encrypt(enablePassword); // 经过sha224加密的密码
 
-let clash_template_url = "https://raw.githubusercontent.com/juerson/cfvless_tunnel/master/clash_template.yaml"; // clash模板
+let clash_template_url = "https://raw.githubusercontent.com/juerson/cftrojan-tunnel/master/clash_template.yaml"; // clash模板
 let ipaddrURL = "https://ipupdate.baipiao.eu.org/"; // 网友收集的优选IP(CDN)
 
 // —————————————————————————————————————————— 该参数用于访问GitHub的私有仓库文件 ——————————————————————————————————————————
@@ -66,7 +66,7 @@ const worker_default = {
 				const hostName = url.searchParams.get('host') || url.hostname;
 				let pwdPassword = url.searchParams.get('pwd') || ''; // 密码参数，分别跟config、sub
 				let defaultPort = url.searchParams.get('port') || 0; // 默认端口
-				let page = url.searchParams.get("page") || 1;                // 从1开始的页码
+				let page = url.searchParams.get("page") || 1;        // 从1开始的页码
 
 				if (pwdPassword) {
 					pwdPassword = encodeURIComponent(pwdPassword);
@@ -118,7 +118,7 @@ const worker_default = {
 							let resultString = "";
 							if (target === 'v2ray' || target === 'trojan') {
 								let maxNodeNumber = url.searchParams.get('maxNode') || url.searchParams.get('maxnode') || 1000; // 最大节点数
-								maxNodeNumber = (maxNodeNumber > 0 && maxNodeNumber <= 5000) ? maxNodeNumber : 1000; // 限制最大节点数
+								maxNodeNumber = (maxNodeNumber > 0 && maxNodeNumber <= 5000) ? maxNodeNumber : 1000; 						// 限制最大节点数
 								// splitArrayEvenly函数：ipArray数组分割成每个子数组都不超过maxNode的数组(子数组之间元素个数平均分配)
 								let chunkedArray = splitArrayEvenly(ipsArray, maxNodeNumber);
 								let totalPage = Math.ceil(ipsArray.length / maxNodeNumber);  // 计算总页数

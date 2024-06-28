@@ -64,7 +64,11 @@ https://a.abc.workers.dev/sub?pwd=123456&target=clash&hostName=github.com  # 修
 https://a.abc.workers.dev/sub?pwd=123456&target=clash&page=2&maxNode=200
 ```
 
-参数随意组合，只要参数是前面表格中的，都可以全部使用。
+注意：
+
+(1) 参数随意组合，只要参数是前面表格中的，都可以全部使用。
+
+(2) 使用 workers.dev （trojan-ws）生成的 clash 配置文件不能使用，必须 `trojan-ws-tls`的才能使用。
 
 ### 四、（可选）巧用GitHub的私有仓库，隐藏您的反代IP、域名
 
