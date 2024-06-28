@@ -9,7 +9,7 @@
 | SHA224PASS      | （必须）也可以在代码中添加，比如：0648919d-8bf1-4d4c-8525-36cf487506ec、f3mkT3C6 |
 | PROXYIP         | （可选）可以为空，或代码中修改，格式：域名或IP地址。比如：cdn.xn--b6gac.eu.org、cdn-all.xn--b6gac.eu.org、cdn-b100.xn--b6gac.eu.org等。 |
 | CONFIG_PASSWORD | （可选）查看节点配置的密码(这里指trojan以及对应的clash.meta配置)，默认为空，无密码；使用：`http://your_worker_domain/config?pwd={CONFIG_PASSWORD}` |
-| SUB_PASSWORD    | （可选）查看节点订阅的密码，默认为空，无密码；使用：`https://your_worker_domain/sub?pwd={SUB_PASSWORD}&target={v2ray/trojan || clash}` |
+| SUB_PASSWORD    | （可选）查看节点订阅的密码，默认为空，无密码；使用：`https://your_worker_domain/sub?pwd={SUB_PASSWORD}&target={v2ray/trojan or clash}` |
 
 使用Pages部署的，在`设置 >> 环境变量 >> 制作 >> 添加变量`中，添加前面的4个变量。
 
