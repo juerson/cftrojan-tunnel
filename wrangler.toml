@@ -1,4 +1,4 @@
 name = "tro-jan-tunnel"
 main = "src/worker.js"
-compatibility_date = "2024-06-26"
+compatibility_date = "2024-06-10"
 workers_dev = true
