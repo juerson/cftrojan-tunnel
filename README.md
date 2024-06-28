@@ -70,6 +70,8 @@ https://a.abc.workers.dev/sub?pwd=123456&target=clash&page=2&maxNode=200
 
 (2) 使用 workers.dev （trojan-ws）生成的 clash 配置文件不能使用，必须 `trojan-ws-tls`的才能使用。
 
+(3) 生成的 clash 节点，PROXYIP 因某个原因丢失，一些网站（比如：ChatGPT、Cloudflare）无法打开，目前还不知道是什么原因导致的。
+
 ### 四、（可选）巧用GitHub的私有仓库，隐藏您的反代IP、域名
 
 如果您花费大量时间，收集一些反代IP、域名，被别人白嫖，而且您当前的网络环境抢不过别人，导致网速大不如以前，气不气？现在你不用为其烦恼，下面使用 GitHub 的私有仓库，将您收集的反代IP、域名的文件隐藏起来，只有对应的 token 才能访问，减少文件内容泄露的风险，保护您收集到的反代IP、域名。
