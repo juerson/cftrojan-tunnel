@@ -598,8 +598,8 @@ var worker_default = {
         sha224Password = hash224encrypt(password);
       }
       const upgradeHeader = request.headers.get("Upgrade");
+      const url = new URL(request.url);
       if (!upgradeHeader || upgradeHeader !== "websocket") {
-        const url = new URL(request.url);
         const target = url.searchParams.get("target") || "v2ray";
         const hostName = url.searchParams.get("host") || url.hostname;
         let pwdPassword = url.searchParams.get("pwd") || "";
@@ -725,6 +725,13 @@ var worker_default = {
             });
         }
       } else {
+        const pathString = url.pathname;
+        if (pathString.includes("/proxyip=")) {
+          const pathPoxyip = pathString.split("=")[1];
+          if (isValidProxyIP(pathPoxyip)) {
+            proxyIP = pathPoxyip;
+          }
+        }
         return await trojanOverWSHandler(request);
       }
     } catch (err) {
@@ -1133,6 +1140,10 @@ function buildTrojan(hostName, port, datas, pswd) {
     }
   }
   return trojanArray.join("\n");
+}
+function isValidProxyIP(ip) {
+  var reg = /(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}|(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|^\[((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){1,7}:)|(([0-9A-Fa-f]{1,4}:){1,6}(:[0-9A-Fa-f]{1,4}|:){1,2})|(([0-9A-Fa-f]{1,4}:){1,5}((:[0-9A-Fa-f]{1,4}){1,3}|:){1,3})|(([0-9A-Fa-f]{1,4}:){1,4}((:[0-9A-Fa-f]{1,4}){1,4}|:){1,4})|(([0-9A-Fa-f]{1,4}:){1,3}((:[0-9A-Fa-f]{1,4}){1,5}|:){1,5})|(([0-9A-Fa-f]{1,4}:){1,2}((:[0-9A-Fa-f]{1,4}){1,6}|:){1,6})|(([0-9A-Fa-f]{1,4}:){1}((:[0-9A-Fa-f]{1,4}){1,7}|:){1,7})|(:(:|([0-9A-Fa-f]{1,4}:){1,7})))(%.+)?]/;
+  return reg.test(ip);
 }
 export {
   worker_default as default
