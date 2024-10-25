@@ -533,49 +533,252 @@ var require_sha256 = __commonJS({
   }
 });
 
-// src/utils.js
-var require_utils = __commonJS({
-  "src/utils.js"(exports, module) {
+// src/sha224.js
+var require_sha224 = __commonJS({
+  "src/sha224.js"(exports, module) {
     var sha224 = require_sha256().sha224;
     function hash224encrypt2(str) {
       return sha224(str);
     }
+    function isValidSHA2242(hash) {
+      const sha224Regex = /^[0-9a-f]{56}$/i;
+      return sha224Regex.test(hash);
+    }
     module.exports = {
-      hash224encrypt: hash224encrypt2
+      hash224encrypt: hash224encrypt2,
+      isValidSHA224: isValidSHA2242
+    };
+  }
+});
+
+// src/addressHandle.js
+var require_addressHandle = __commonJS({
+  "src/addressHandle.js"(exports, module) {
+    function splitArray(array, chunkSize) {
+      const chunks = [];
+      let index = 0;
+      while (index < array.length) {
+        chunks.push(array.slice(index, index + chunkSize));
+        index += chunkSize;
+      }
+      return chunks;
+    }
+    function splitArrayEvenly2(array, maxChunkSize) {
+      const totalLength = array.length;
+      const numChunks = Math.ceil(totalLength / maxChunkSize);
+      const chunkSize = Math.ceil(totalLength / numChunks);
+      return splitArray(array, chunkSize);
+    }
+    function isValidProxyIP2(ip) {
+      var reg = /^(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d{1,5})?|(?:(?:\d{1,3}\.){3}\d{1,3})(?::\d{1,5})?|(?:\[[0-9a-fA-F:]+\])(?::\d{1,5})?)$/;
+      return reg.test(ip);
+    }
+    function parseProxyIP2(address) {
+      const regex = /^(?:(?<domain>(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(?::(?<port>\d{1,5}))?|(?<ipv4>(?:\d{1,3}\.){3}\d{1,3})(?::(?<port_ipv4>\d{1,5}))?|(?<ipv6>\[[0-9a-fA-F:]+\])(?::(?<port_ipv6>\d{1,5}))?)$/;
+      const match = address.match(regex);
+      if (match) {
+        let host = match.groups.domain || match.groups.ipv4 || match.groups.ipv6;
+        let port = match.groups.port || match.groups.port_ipv4 || match.groups.port_ipv6 || void 0;
+        return { host, port };
+      } else {
+        return { host: "", undefined: void 0 };
+      }
+    }
+    function getRandomElement2(array) {
+      const randomIndex = Math.floor(Math.random() * array.length);
+      return array[randomIndex];
+    }
+    module.exports = {
+      splitArrayEvenly: splitArrayEvenly2,
+      isValidProxyIP: isValidProxyIP2,
+      parseProxyIP: parseProxyIP2,
+      getRandomElement: getRandomElement2
+    };
+  }
+});
+
+// src/crawler.js
+var require_crawler = __commonJS({
+  "src/crawler.js"(exports, module) {
+    async function fetchGitHubFile2(token, owner, repo, filePath, branch = "main") {
+      const githubUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`;
+      try {
+        const response = await fetch(githubUrl, {
+          method: "GET",
+          headers: {
+            Authorization: `token ${token}`,
+            Accept: "application/vnd.github.v3.raw",
+            "User-Agent": "Cloudflare Worker"
+          }
+        });
+        if (!response.ok) {
+          return {
+            body: "",
+            contentType: "text/plain; charset=utf-8"
+          };
+        }
+        const contentType = response.headers.get("Content-Type") || "application/octet-stream";
+        const body = await response.arrayBuffer();
+        return {
+          body,
+          contentType
+        };
+      } catch (error) {
+        return {
+          body: "",
+          contentType: "text/plain; charset=utf-8"
+        };
+      }
+    }
+    async function fetchWebPageContent2(URL2) {
+      try {
+        const response = await fetch(URL2);
+        if (!response.ok) {
+          throw new Error(`Failed to get: ${response.status}`);
+          return "";
+        } else {
+          return await response.text();
+        }
+      } catch (err) {
+        console.error(`Failed to fetch ${URL2} web conten: ${err.message}`);
+        return "";
+      }
+    }
+    module.exports = {
+      fetchGitHubFile: fetchGitHubFile2,
+      fetchWebPageContent: fetchWebPageContent2
+    };
+  }
+});
+
+// src/output.js
+var require_output = __commonJS({
+  "src/output.js"(exports, module) {
+    var { getRandomElement: getRandomElement2 } = require_addressHandle();
+    function getTROJANConfig2(pswd, host) {
+      let server = "www.visa.com.sg";
+      let trojanws = `trojan://${pswd}@${server}:8080?security=none&type=ws&host=${host}&path=%2F#trojan-ws`;
+      let trojanwsTls = `trojan://${pswd}@${server}:443?security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F#trojan-ws-tls`;
+      return `
+####################################################################################################################
+v2ray
+--------------------------------------------------------------------------------------------------------------------
+trojan-ws\u5206\u4EAB\u94FE\u63A5\uFF1A${trojanws}
+
+trojan-ws-tls\u5206\u4EAB\u94FE\u63A5\uFF1A${trojanwsTls}
+--------------------------------------------------------------------------------------------------------------------
+####################################################################################################################
+clash-meta (trojan-ws-tls)
+--------------------------------------------------------------------------------------------------------------------
+- type: trojan
+  name: trojan-ws-tls
+  server: ${server}
+  port: 443
+  password: ${pswd}
+  network: ws
+  udp: false
+  sni: ${host}
+  client-fingerprint: chrome
+  skip-cert-verify: true
+  ws-opts:
+    path: /
+    headers:
+      Host: ${host}
+--------------------------------------------------------------------------------------------------------------------
+####################################################################################################################
+	`;
+    }
+    function buildTrojan2(hostName, defaultPort, datas, pswd, HTTP_WITH_PORTS2, HTTPS_WITH_PORTS2) {
+      let trojanArray = [];
+      for (let addr of datas) {
+        let randomHttpPortElement = getRandomElement2(HTTP_WITH_PORTS2);
+        let randomHttpsPortElement = getRandomElement2(HTTPS_WITH_PORTS2);
+        let port = [0, ...HTTPS_WITH_PORTS2].includes(Number(defaultPort)) && hostName.includes("workers.dev") || [0, ...HTTP_WITH_PORTS2].includes(Number(defaultPort)) && !hostName.includes("workers.dev") ? hostName.includes("workers.dev") ? randomHttpPortElement : randomHttpsPortElement : defaultPort;
+        if (hostName.endsWith("workers.dev") && addr) {
+          let trojanws = `trojan://${pswd}@${addr}:${port}?security=none&type=ws&host=${hostName}&path=%2F#trojan-ws`;
+          if (!trojanArray.includes(trojanws)) {
+            trojanArray.push(trojanws);
+          }
+        } else if (addr) {
+          let trojanwsTls = `trojan://${pswd}@${addr}:${port}?security=tls&sni=${hostName}&fp=chrome&type=ws&host=${hostName}&path=%2F#trojan-ws-tls`;
+          if (!trojanArray.includes(trojanwsTls)) {
+            trojanArray.push(trojanwsTls);
+          }
+        }
+      }
+      return trojanArray.join("\n");
+    }
+    function buildPrxyNameClashJSON2(ipsArrayChunked, hostName, password, defaultPort, HTTP_WITH_PORTS2, HTTPS_WITH_PORTS2) {
+      let proxyies = [];
+      let nodeNames = [];
+      for (let server of ipsArrayChunked) {
+        let randomHttpPortElement = getRandomElement2(HTTP_WITH_PORTS2);
+        let randomHttpsPortElement = getRandomElement2(HTTPS_WITH_PORTS2);
+        let port = [0, ...HTTPS_WITH_PORTS2].includes(Number(defaultPort)) && hostName.includes("workers.dev") || [0, ...HTTP_WITH_PORTS2].includes(Number(defaultPort)) && !hostName.includes("workers.dev") ? hostName.includes("workers.dev") ? randomHttpPortElement : randomHttpsPortElement : defaultPort;
+        let nodeName = `\u3010cfwks\u3011${server}:${port}`;
+        let jsonObject = {
+          type: "trojan",
+          name: nodeName,
+          server,
+          port,
+          password,
+          network: "ws",
+          udp: false,
+          sni: hostName,
+          "client-fingerprint": "chrome",
+          "skip-cert-verify": true,
+          "ws-opts": {
+            path: "/",
+            headers: {
+              Host: hostName
+            }
+          }
+        };
+        let clash_node_str = JSON.stringify(jsonObject, null, 0);
+        if (!nodeNames.includes(nodeName)) {
+          proxyies.push(`  - ${clash_node_str}`);
+          nodeNames.push(nodeName);
+        }
+      }
+      return [nodeNames, proxyies];
+    }
+    module.exports = {
+      getTROJANConfig: getTROJANConfig2,
+      buildTrojan: buildTrojan2,
+      buildPrxyNameClashJSON: buildPrxyNameClashJSON2
     };
   }
 });
 
 // src/worker.js
-import {
-  connect
-} from "cloudflare:sockets";
-var {
-  hash224encrypt
-} = require_utils();
-var arrlist = ["company.cxcnyh.dynv6.net", "cdn-b100.xn--b6gac.eu.org", "proxyip.sg.fxxk.dedyn.io"];
-var proxyIP = arrlist[Math.floor(Math.random() * arrlist.length)];
-var enablePassword = "a1234567";
-var sha224Password = hash224encrypt(enablePassword);
-var clash_template_url = "https://raw.githubusercontent.com/juerson/cftrojan-tunnel/master/clash_template.yaml";
-var ipaddrURL = "https://ipupdate.baipiao.eu.org/";
+import { connect } from "cloudflare:sockets";
+var { hash224encrypt, isValidSHA224 } = require_sha224();
+var { splitArrayEvenly, isValidProxyIP, parseProxyIP, getRandomElement } = require_addressHandle();
+var { fetchGitHubFile, fetchWebPageContent } = require_crawler();
+var { getTROJANConfig, buildTrojan, buildPrxyNameClashJSON } = require_output();
+var proxyList = ["bpb.yousef.isegaro.com", "cdn-all.xn--b6gac.eu.org", "cdn-b100.xn--b6gac.eu.org", "proxyip.sg.fxxk.dedyn.io"];
+var proxyIP = getRandomElement(proxyList);
+var plaintextPassword = "a1234567";
+var sha224Password = hash224encrypt(plaintextPassword);
+var domainList = [
+  "https://www.iq.com",
+  "https://www.dell.com",
+  "https://www.bilibili.com",
+  "https://www.wix.com/",
+  "https://landingsite.ai/",
+  "https://vimeo.com/",
+  "https://www.pexels.com/",
+  "https://www.revid.ai/"
+];
+var HTTP_WITH_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
+var HTTPS_WITH_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
 var DEFAULT_GITHUB_TOKEN = "";
 var DEFAULT_OWNER = "";
 var DEFAULT_REPO = "";
 var DEFAULT_BRANCH = "main";
 var DEFAULT_FILE_PATH = "README.md";
-var domainList = [
-  "https://www.iq.com",
-  "https://www.dell.com",
-  "https://www.bilibili.com",
-  "https://www.alibaba.com",
-  "https://fmovies.llc/home",
-  "https://www.visaitalia.com/",
-  "https://www.techspot.com"
-];
-if (!isValidSHA224(sha224Password)) {
-  throw new Error("sha224Password is not valid");
-}
+var clash_template_url = "https://raw.githubusercontent.com/juerson/cftrojan-tunnel/master/clash_template.yaml";
+var ipaddrURL = "https://ipupdate.baipiao.eu.org/";
 var worker_default = {
   /**
    * @param {import("@cloudflare/workers-types").Request} request
@@ -590,12 +793,15 @@ var worker_default = {
       const REPO = env.GITHUB_REPO || DEFAULT_REPO;
       const BRANCH = env.GITHUB_BRANCH || DEFAULT_BRANCH;
       const FILE_PATH = env.GITHUB_FILE_PATH || DEFAULT_FILE_PATH;
-      proxyIP = env.PROXYIP || proxyIP;
       let configPassword = env.CONFIG_PASSWORD || "";
       let subPassword = env.SUB_PASSWORD || "";
-      let password = env.SHA224PASS || enablePassword;
-      if (password !== enablePassword) {
+      proxyIP = env.PROXYIP || proxyIP;
+      let password = env.SHA224PASS || plaintextPassword;
+      if (password !== plaintextPassword) {
         sha224Password = hash224encrypt(password);
+      }
+      if (!isValidSHA224(sha224Password)) {
+        throw new Error("sha224Password is not valid");
       }
       const upgradeHeader = request.headers.get("Upgrade");
       const url = new URL(request.url);
@@ -616,7 +822,7 @@ var worker_default = {
             const redirectResponse = new Response("", {
               status: 301,
               headers: {
-                "Location": randomDomain
+                Location: randomDomain
               }
             });
             return redirectResponse;
@@ -658,7 +864,7 @@ var worker_default = {
                   return new Response("Not found", { status: 404 });
                 }
                 let ipsArrayChunked = chunkedArray[page - 1];
-                resultString = buildTrojan(hostName, defaultPort, ipsArrayChunked, password);
+                resultString = buildTrojan(hostName, defaultPort, ipsArrayChunked, password, HTTP_WITH_PORTS, HTTPS_WITH_PORTS);
               } else if (target === "clash") {
                 let maxNode = url.searchParams.get("maxNode") || url.searchParams.get("maxnode") || 300;
                 maxNode = maxNode > 0 && maxNode <= 1e3 ? maxNode : 300;
@@ -667,46 +873,30 @@ var worker_default = {
                 if (page > totalPage || page < 1) {
                   return new Response("Not found", { status: 404 });
                 }
-                let clash_template = await fetchWebPageContent(clash_template_url);
                 let ipsArrayChunked = chunkedArray[page - 1];
-                let port;
-                if (![0, 443, 2053, 2083, 2087, 2096, 8443].includes(Number(defaultPort)) && hostName.includes("workers.dev") || ![0, 80, 8080, 8880, 2052, 2082, 2086, 2095].includes(Number(defaultPort)) && !hostName.includes("workers.dev")) {
-                  port = defaultPort;
-                } else {
-                  port = hostName.includes("workers.dev") ? 8080 : 443;
-                }
-                let proxyies = [];
-                let nodeNameArray = [];
-                for (let i = 0; i < ipsArrayChunked.length; i++) {
-                  let server = ipsArrayChunked[i];
-                  let nodeName = `\u3010cfwks\u3011${server}:${port}`;
-                  let jsonObject = {
-                    "type": "trojan",
-                    "name": nodeName,
-                    "server": server,
-                    "port": port,
-                    "password": password,
-                    "network": "ws",
-                    "udp": false,
-                    "sni": hostName,
-                    "client-fingerprint": "chrome",
-                    "skip-cert-verify": true,
-                    "ws-opts": {
-                      "path": "/",
-                      "headers": {
-                        "Host": hostName
-                      }
-                    }
-                  };
-                  let clash_node_str = JSON.stringify(jsonObject, null, 0);
-                  if (!nodeNameArray.includes(nodeName)) {
-                    proxyies.push(`  - ${clash_node_str}`);
-                    nodeNameArray.push(nodeName);
-                  }
-                }
-                if (nodeNameArray.length > 0) {
-                  let replaceProxyies = clash_template.replace(new RegExp(atob("ICAtIHtuYW1lOiAwMSwgc2VydmVyOiAxMjcuMC4wLjEsIHBvcnQ6IDgwLCB0eXBlOiBzcywgY2lwaGVyOiBhZXMtMTI4LWdjbSwgcGFzc3dvcmQ6IGExMjM0NTZ9"), "g"), proxyies.join("\n"));
-                  resultString = replaceProxyies.replace(new RegExp(atob("ICAgICAgLSAwMQ=="), "g"), nodeNameArray.map((ipWithPort) => `      - ${ipWithPort}`).join("\n"));
+                let [nodeNames, proxyies] = buildPrxyNameClashJSON(
+                  ipsArrayChunked,
+                  hostName,
+                  password,
+                  defaultPort,
+                  HTTP_WITH_PORTS,
+                  HTTPS_WITH_PORTS
+                );
+                let clash_template = await fetchWebPageContent(clash_template_url);
+                if (nodeNames) {
+                  let replaceProxyies = clash_template.replace(
+                    new RegExp(
+                      atob(
+                        "ICAtIHtuYW1lOiAwMSwgc2VydmVyOiAxMjcuMC4wLjEsIHBvcnQ6IDgwLCB0eXBlOiBzcywgY2lwaGVyOiBhZXMtMTI4LWdjbSwgcGFzc3dvcmQ6IGExMjM0NTZ9"
+                      ),
+                      "g"
+                    ),
+                    proxyies.join("\n")
+                  );
+                  resultString = replaceProxyies.replace(
+                    new RegExp(atob("ICAgICAgLSAwMQ=="), "g"),
+                    nodeNames.map((ipWithPort) => `      - ${ipWithPort}`).join("\n")
+                  );
                 }
               }
               return new Response(resultString, {
@@ -755,44 +945,39 @@ async function trojanOverWSHandler(request) {
     value: null
   };
   let udpStreamWrite = null;
-  readableWebSocketStream.pipeTo(new WritableStream({
-    async write(chunk, controller) {
-      if (udpStreamWrite) {
-        return udpStreamWrite(chunk);
+  readableWebSocketStream.pipeTo(
+    new WritableStream({
+      async write(chunk, controller) {
+        if (udpStreamWrite) {
+          return udpStreamWrite(chunk);
+        }
+        if (remoteSocketWapper.value) {
+          const writer = remoteSocketWapper.value.writable.getWriter();
+          await writer.write(chunk);
+          writer.releaseLock();
+          return;
+        }
+        const { hasError, message, addressRemote = "", portRemote = 443, rawClientData } = await parseTrojanHeader(chunk);
+        if (hasError) {
+          throw new Error(message);
+          return;
+        }
+        address = addressRemote;
+        portWithRandomLog = `${portRemote}--${Math.random()} tcp`;
+        handleTCPOutBound(remoteSocketWapper, addressRemote, portRemote, rawClientData, webSocket, log);
+      },
+      close() {
+        log(`readableWebSocketStream is closed`);
+      },
+      abort(reason) {
+        log(`readableWebSocketStream is aborted`, JSON.stringify(reason));
       }
-      if (remoteSocketWapper.value) {
-        const writer = remoteSocketWapper.value.writable.getWriter();
-        await writer.write(chunk);
-        writer.releaseLock();
-        return;
-      }
-      const {
-        hasError,
-        message,
-        portRemote = 443,
-        addressRemote = "",
-        rawClientData
-      } = await parseTrojanHeader(chunk);
-      address = addressRemote;
-      portWithRandomLog = `${portRemote}--${Math.random()} tcp`;
-      if (hasError) {
-        throw new Error(message);
-        return;
-      }
-      handleTCPOutBound(remoteSocketWapper, addressRemote, portRemote, rawClientData, webSocket, log);
-    },
-    close() {
-      log(`readableWebSocketStream is closed`);
-    },
-    abort(reason) {
-      log(`readableWebSocketStream is aborted`, JSON.stringify(reason));
-    }
-  })).catch((err) => {
+    })
+  ).catch((err) => {
     log("readableWebSocketStream pipeTo error", err);
   });
   return new Response(null, {
     status: 101,
-    // @ts-ignore
     webSocket: client
   });
 }
@@ -839,18 +1024,12 @@ async function parseTrojanHeader(buffer) {
   switch (atype) {
     case 1:
       addressLength = 4;
-      address = new Uint8Array(
-        socks5DataBuffer.slice(addressIndex, addressIndex + addressLength)
-      ).join(".");
+      address = new Uint8Array(socks5DataBuffer.slice(addressIndex, addressIndex + addressLength)).join(".");
       break;
     case 3:
-      addressLength = new Uint8Array(
-        socks5DataBuffer.slice(addressIndex, addressIndex + 1)
-      )[0];
+      addressLength = new Uint8Array(socks5DataBuffer.slice(addressIndex, addressIndex + 1))[0];
       addressIndex += 1;
-      address = new TextDecoder().decode(
-        socks5DataBuffer.slice(addressIndex, addressIndex + addressLength)
-      );
+      address = new TextDecoder().decode(socks5DataBuffer.slice(addressIndex, addressIndex + addressLength));
       break;
     case 4:
       addressLength = 16;
@@ -885,28 +1064,30 @@ async function parseTrojanHeader(buffer) {
 }
 async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawClientData, webSocket, log) {
   async function connectAndWrite(address, port) {
-    const tcpSocket2 = connect({
+    let tcpSocket22 = connect({
       hostname: address,
       port
     });
-    remoteSocket.value = tcpSocket2;
-    log(`connected to ${address}:${port}`);
-    const writer = tcpSocket2.writable.getWriter();
+    remoteSocket.value = tcpSocket22;
+    const writer = tcpSocket22.writable.getWriter();
     await writer.write(rawClientData);
     writer.releaseLock();
-    return tcpSocket2;
+    return tcpSocket22;
   }
   async function retry() {
-    const tcpSocket2 = await connectAndWrite(proxyIP || addressRemote, portRemote);
-    tcpSocket2.closed.catch((error) => {
+    let porxyip_json = parseProxyIP(proxyIP);
+    let host = porxyip_json.host || addressRemote;
+    let port = porxyip_json.port || portRemote;
+    const tcpSocket22 = await connectAndWrite(host, port);
+    tcpSocket22.closed.catch((error) => {
       console.log("retry tcpSocket closed error", error);
     }).finally(() => {
       safeCloseWebSocket(webSocket);
     });
-    remoteSocketToWS(tcpSocket2, webSocket, null, log);
+    remoteSocketToWS(tcpSocket22, webSocket, null, log);
   }
-  const tcpSocket = await connectAndWrite(addressRemote, portRemote);
-  remoteSocketToWS(tcpSocket, webSocket, retry, log);
+  const tcpSocket2 = await connectAndWrite(addressRemote, portRemote);
+  remoteSocketToWS(tcpSocket2, webSocket, retry, log);
 }
 function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
   let readableStreamCancel = false;
@@ -930,10 +1111,7 @@ function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
         log("webSocketServer error");
         controller.error(err);
       });
-      const {
-        earlyData,
-        error
-      } = base64ToArrayBuffer(earlyDataHeader);
+      const { earlyData, error } = base64ToArrayBuffer(earlyDataHeader);
       if (error) {
         controller.error(error);
       } else if (earlyData) {
@@ -960,16 +1138,13 @@ async function remoteSocketToWS(remoteSocket, webSocket, retry, log) {
       start() {
       },
       /**
-       *
        * @param {Uint8Array} chunk
        * @param {*} controller
        */
       async write(chunk, controller) {
         hasIncomingData = true;
         if (webSocket.readyState !== WS_READY_STATE_OPEN) {
-          controller.error(
-            "webSocket connection is not open"
-          );
+          controller.error("webSocket connection is not open");
         }
         webSocket.send(chunk);
       },
@@ -981,20 +1156,13 @@ async function remoteSocketToWS(remoteSocket, webSocket, retry, log) {
       }
     })
   ).catch((error) => {
-    console.error(
-      `remoteSocketToWS error:`,
-      error.stack || error
-    );
+    console.error(`remoteSocketToWS error:`, error.stack || error);
     safeCloseWebSocket(webSocket);
   });
   if (hasIncomingData === false && retry) {
     log(`retry`);
     retry();
   }
-}
-function isValidSHA224(hash) {
-  const sha224Regex = /^[0-9a-f]{56}$/i;
-  return sha224Regex.test(hash);
 }
 function base64ToArrayBuffer(base64Str) {
   if (!base64Str) {
@@ -1026,124 +1194,6 @@ function safeCloseWebSocket(socket) {
   } catch (error) {
     console.error("safeCloseWebSocket error", error);
   }
-}
-function splitArray(array, chunkSize) {
-  const chunks = [];
-  let index = 0;
-  while (index < array.length) {
-    chunks.push(array.slice(index, index + chunkSize));
-    index += chunkSize;
-  }
-  return chunks;
-}
-function splitArrayEvenly(array, maxChunkSize) {
-  const totalLength = array.length;
-  const numChunks = Math.ceil(totalLength / maxChunkSize);
-  const chunkSize = Math.ceil(totalLength / numChunks);
-  return splitArray(array, chunkSize);
-}
-function getTROJANConfig(pswd, host) {
-  let server = "www.visa.com";
-  let trojanws = `trojan://${pswd}@${server}:8080?security=none&type=ws&host=${host}&path=%2F#trojan-ws`;
-  let trojanwsTls = `trojan://${pswd}@${server}:443?security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F#trojan-ws-tls`;
-  return `
-####################################################################################################################
-v2ray
---------------------------------------------------------------------------------------------------------------------
-trojan-ws\u5206\u4EAB\u94FE\u63A5\uFF1A${trojanws}
-
-trojan-ws-tls\u5206\u4EAB\u94FE\u63A5\uFF1A${trojanwsTls}
---------------------------------------------------------------------------------------------------------------------
-####################################################################################################################
-clash-meta (trojan-ws-tls)
---------------------------------------------------------------------------------------------------------------------
-- type: trojan
-  name: trojan-ws-tls
-  server: ${server}
-  port: 443
-  password: ${pswd}
-  network: ws
-  udp: false
-  sni: ${host}
-  client-fingerprint: chrome
-  skip-cert-verify: true
-  ws-opts:
-    path: /
-    headers:
-      Host: ${host}
---------------------------------------------------------------------------------------------------------------------
-####################################################################################################################
-	`;
-}
-async function fetchGitHubFile(token, owner, repo, filePath, branch = "main") {
-  const githubUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`;
-  try {
-    const response = await fetch(githubUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `token ${token}`,
-        // 使用访问令牌进行授权
-        "Accept": "application/vnd.github.v3.raw",
-        // 请求返回文件的原始内容
-        "User-Agent": "Cloudflare Worker"
-        // 指定用户代理，GitHub要求非浏览器用户代理标识
-      }
-    });
-    if (!response.ok) {
-      return {
-        body: "",
-        contentType: "text/plain; charset=utf-8"
-      };
-    }
-    const contentType = response.headers.get("Content-Type") || "application/octet-stream";
-    const body = await response.arrayBuffer();
-    return {
-      body,
-      contentType
-    };
-  } catch (error) {
-    return {
-      body: "",
-      contentType: "text/plain; charset=utf-8"
-    };
-  }
-}
-async function fetchWebPageContent(URL2) {
-  try {
-    const response = await fetch(URL2);
-    if (!response.ok) {
-      throw new Error(`Failed to get: ${response.status}`);
-      return "";
-    } else {
-      return await response.text();
-    }
-  } catch (err) {
-    console.error(`Failed to fetch ${URL2} web conten: ${err.message}`);
-    return "";
-  }
-}
-function buildTrojan(hostName, port, datas, pswd) {
-  let trojanArray = [];
-  for (let addr of datas) {
-    if (hostName.endsWith("workers.dev") && addr) {
-      port = ![0, 443, 2053, 2083, 2087, 2096, 8443].includes(Number(port)) ? Number(port) : 8080;
-      let trojanws = `trojan://${pswd}@${addr}:${port}?security=none&type=ws&host=${hostName}&path=%2F#trojan-ws`;
-      if (!trojanArray.includes(trojanws)) {
-        trojanArray.push(trojanws);
-      }
-    } else if (addr) {
-      port = ![0, 80, 8080, 8880, 2052, 2082, 2086, 2095].includes(Number(port)) ? Number(port) : 8443;
-      let trojanwsTls = `trojan://${pswd}@${addr}:${port}?security=tls&sni=${hostName}&fp=chrome&type=ws&host=${hostName}&path=%2F#trojan-ws-tls`;
-      if (!trojanArray.includes(trojanwsTls)) {
-        trojanArray.push(trojanwsTls);
-      }
-    }
-  }
-  return trojanArray.join("\n");
-}
-function isValidProxyIP(ip) {
-  var reg = /(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}|(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|^\[((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){1,7}:)|(([0-9A-Fa-f]{1,4}:){1,6}(:[0-9A-Fa-f]{1,4}|:){1,2})|(([0-9A-Fa-f]{1,4}:){1,5}((:[0-9A-Fa-f]{1,4}){1,3}|:){1,3})|(([0-9A-Fa-f]{1,4}:){1,4}((:[0-9A-Fa-f]{1,4}){1,4}|:){1,4})|(([0-9A-Fa-f]{1,4}:){1,3}((:[0-9A-Fa-f]{1,4}){1,5}|:){1,5})|(([0-9A-Fa-f]{1,4}:){1,2}((:[0-9A-Fa-f]{1,4}){1,6}|:){1,6})|(([0-9A-Fa-f]{1,4}:){1}((:[0-9A-Fa-f]{1,4}){1,7}|:){1,7})|(:(:|([0-9A-Fa-f]{1,4}:){1,7})))(%.+)?]/;
-  return reg.test(ip);
 }
 export {
   worker_default as default
