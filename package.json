@@ -1,6 +1,6 @@
 {
-  "name": "tro-jan-tunnel",
-  "version": "0.0.0",
+  "name": "cftrojan-tunnel-worker",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",

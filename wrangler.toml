@@ -1,4 +1,18 @@
-name = "tro-jan-tunnel"
+name = "cftrojan-tunnel-worker"
 main = "src/worker.js"
 compatibility_date = "2024-06-10"
 workers_dev = true
+
+[vars]
+# 常用参数
+SHA224PASS = 'g7R13Q1o6tl71Boa4D'
+PROXYIP = ''
+# 查询节点LINK的配置模板、订阅
+CONFIG_PASSWORD = ''
+SUB_PASSWORD = ''
+# GitHub配置（读取私有文件的配置）
+GITHUB_TOKEN = ''      # github token
+GITHUB_OWNER = ''      # 仓库拥有者
+GITHUB_REPO = ''       # 仓库名
+GITHUB_BRANCH = 'main' # 分支名
+GITHUB_FILE_PATH = ''  # 文件路径，相对路径

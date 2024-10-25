@@ -7,7 +7,7 @@
 | **变量名称**    | **说明**                                                     |
 | --------------- | ------------------------------------------------------------ |
 | SHA224PASS      | （必须）也可以在代码中添加，比如：0648919d-8bf1-4d4c-8525-36cf487506ec、f3mkT3C6 |
-| PROXYIP         | （可选）可以为空，或代码中修改，格式：域名或IP地址。比如：cdn.xn--b6gac.eu.org、cdn-all.xn--b6gac.eu.org、cdn-b100.xn--b6gac.eu.org等。 |
+| PROXYIP         | （可选）可以为空，可以在代码中修改，格式：(Sub-)Domain:PORT、IPv4:PORT、[IPv6]:PORT（没有端口，默认是443端口） |
 | CONFIG_PASSWORD | （可选）查看节点配置的密码(这里指trojan以及对应的clash.meta配置)，默认为空，无密码；使用：`http://your_worker_domain/config?pwd={CONFIG_PASSWORD}` |
 | SUB_PASSWORD    | （可选）查看节点订阅的密码，默认为空，无密码；使用：`https://your_worker_domain/sub?pwd={SUB_PASSWORD}&target={v2ray/trojan or clash}` |
 
@@ -135,18 +135,21 @@ ip.sb
 
 ```
 /proxyip=speed.cloudflare.com
+/proxyip=speed.cloudflare.com:443
 ```
 
 IPv4地址：
 
 ```
 /proxyip=192.168.1.1
+/proxyip=192.168.1.1:443
 ```
 
 IPv6地址：
 
 ```
 /proxyip=[fe80::c789:ece7:5079:3406]
+/proxyip=[fe80::c789:ece7:5079:3406]:443
 ```
 
 注意：以上的PROXYIP，仅用于举例。
