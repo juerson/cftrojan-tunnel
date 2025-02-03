@@ -1,11 +1,11 @@
 import { connect } from 'cloudflare:sockets';
 const { hash224encrypt, isValidSHA224 } = require('./sha224');
-const { splitArrayEvenly, isValidProxyIP, parseProxyIP, getRandomElement } = require('./addressHandle');
+const { splitArrayEvenly, isValidLandingAddress, parseLandingAddress } = require('./addressHandle');
 const { fetchGitHubFile, fetchWebPageContent } = require('./crawler');
-const { getTROJANConfig, buildTrojan, buildPrxyNameClashJSON } = require('./output');
+const { getBaseConfig, buildLinks, buildYamls, buildJsons } = require('./output');
+const { base64Decode } = require('./base64');
 
-let proxyList = ['bpb.yousef.isegaro.com', 'cdn-all.xn--b6gac.eu.org', 'cdn-b100.xn--b6gac.eu.org', 'proxyip.sg.fxxk.dedyn.io'];
-let proxyIP = getRandomElement(proxyList);
+let landingAddress = '';
 
 let plaintextPassword = 'a1234567'; // 明文密码，没有经过sha224加密的密码
 let sha224Password = hash224encrypt(plaintextPassword); // 经过sha224加密的密码
@@ -32,13 +32,13 @@ const DEFAULT_BRANCH = 'main'; // GitHub的分支名
 const DEFAULT_FILE_PATH = 'README.md'; // GitHub的文件路径
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 
-let clash_template_url = 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/master/clash_template.yaml'; // clash模板
-let ipaddrURL = 'https://ipupdate.baipiao.eu.org/'; // 网友收集的优选IP(CDN)
+let confTemplateUrl = 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/clashTemplate.yaml'; // clash模板
+let ipaddrURL = 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/ipaddr.txt';
 
 const worker_default = {
 	/**
 	 * @param {import("@cloudflare/workers-types").Request} request
-	 * @param {{SHA224PASS: string, PROXYIP: string}} env
+	 * @param {{PASS_CODE: string, LANDING_ADDRESS: string}} env
 	 * @param {import("@cloudflare/workers-types").ExecutionContext} ctx
 	 * @returns {Promise<Response>}
 	 */
@@ -54,8 +54,8 @@ const worker_default = {
 			let configPassword = env.CONFIG_PASSWORD || '';
 			let subPassword = env.SUB_PASSWORD || '';
 			// ————————————————————————————————————————————————————————————————————————————————
-			proxyIP = env.PROXYIP || proxyIP;
-			let password = env.SHA224PASS || plaintextPassword; // 明文密码，没有经过sha224加密的密码
+			landingAddress = env.LANDING_ADDRESS || landingAddress;
+			let password = env.PASS_CODE || plaintextPassword; // 明文密码，没有经过sha224加密的密码
 			if (password !== plaintextPassword) {
 				sha224Password = hash224encrypt(password);
 			}
@@ -67,9 +67,9 @@ const worker_default = {
 			const upgradeHeader = request.headers.get('Upgrade');
 			const url = new URL(request.url);
 			if (!upgradeHeader || upgradeHeader !== 'websocket') {
-				const target = url.searchParams.get('target') || 'v2ray';
+				const target = url.searchParams.get('target');
 				const hostName = url.searchParams.get('host') || url.hostname;
-				let pwdPassword = url.searchParams.get('pwd') || ''; // 密码参数，分别跟config、sub
+				let pwdPassword = url.searchParams.get('pwd') || ''; // 密码
 				let defaultPort = url.searchParams.get('port') || 0; // 默认端口
 				let page = url.searchParams.get('page') || 1; // 从1开始的页码
 
@@ -90,16 +90,16 @@ const worker_default = {
 						});
 						return redirectResponse;
 					case `/config`:
-						let trojanConfig = ''; // 要显示的网页内容
+						let html_doc = ''; // 要显示的网页内容
 						let responseStatus = 200; // 响应的状态码
 						if (pwdPassword === configPassword) {
-							trojanConfig = getTROJANConfig(password, hostName);
+							html_doc = getBaseConfig(password, hostName);
 							responseStatus = 200;
 						} else {
-							trojanConfig = '404 Not found'; // pwd密码输入错误，不允许查看配置信息
+							html_doc = '您无相关的权限访问！'; // pwd密码输入错误，不允许查看配置信息
 							responseStatus = 404;
 						}
-						return new Response(trojanConfig, {
+						return new Response(html_doc, {
 							status: responseStatus,
 							headers: {
 								'Content-Type': 'text/plain;charset=utf-8',
@@ -118,48 +118,63 @@ const worker_default = {
 							}
 							// 如果读取到GitHub私有文件的内容为空时，就使用ipaddrURL的IP地址
 							ips_string = ips_string !== '' ? ips_string : await fetchWebPageContent(ipaddrURL);
+							if (ips_string.length == 0) {
+								return new Response('数据为空，无法生成订阅！', {
+									status: 200,
+									headers: {
+										'Content-Type': 'text/plain;charset=utf-8',
+									},
+								});
+							}
 							let ipsArray = ips_string
 								.trim()
 								.split(/\r\n|\n|\r/)
 								.map((ip) => ip.trim());
 
-							let resultString = '';
-							if (target === 'v2ray' || target === 'trojan') {
-								// 限制最大节点数
+							let html_doc = '';
+							if (target === base64Decode('djJyYXk')) {
+								// v2ray
 								let maxNodeNumber = url.searchParams.get('maxNode') || url.searchParams.get('maxnode') || 1000;
 								maxNodeNumber = maxNodeNumber > 0 && maxNodeNumber <= 5000 ? maxNodeNumber : 1000;
 								// splitArrayEvenly函数：ipArray数组分割成每个子数组都不超过maxNode的数组(子数组之间元素个数平均分配)
 								let chunkedArray = splitArrayEvenly(ipsArray, maxNodeNumber);
 								let totalPage = Math.ceil(ipsArray.length / maxNodeNumber); // 计算总页数
-								// 页码超出范围，返回404错误页面
 								if (page > totalPage || page < 1) {
-									return new Response('Not found', { status: 404 });
+									return new Response('The data is empty.', { status: 200 });
 								}
 								// 使用哪个子数组的数据？
 								let ipsArrayChunked = chunkedArray[page - 1];
-								resultString = buildTrojan(hostName, defaultPort, ipsArrayChunked, password, HTTP_WITH_PORTS, HTTPS_WITH_PORTS);
-							} else if (target === 'clash') {
+								html_doc = buildLinks(ipsArrayChunked, hostName, password, defaultPort, HTTP_WITH_PORTS, HTTPS_WITH_PORTS);
+							} else if (target === base64Decode('Y2xhc2g')) {
+								// clash
+								// ---------------------------------------------
+								// 剔除workers.dev生成trojan协议的clash订阅，无法使用的情况。
+								const isCFworkersDomain = hostName.endsWith(base64Decode('d29ya2Vycy5kZXY')) ? true : false;
+								if (isCFworkersDomain) {
+									html_doc = base64Decode(
+										'6K2m5ZGK77ya5L2/55So5Z+f5ZCNI2hvc3ROYW1lI+eUn+aIkOeahGNsYXNo6K6i6ZiF5peg5rOV5L2/55So77yB57uI5q2i5pON5L2c44CC'
+									).replace('#hostName#', hostName);
+									return new Response(html_doc, {
+										status: 200,
+										headers: {
+											'Content-Type': 'text/plain;charset=utf-8',
+										},
+									});
+								}
+								// ---------------------------------------------
 								let maxNode = url.searchParams.get('maxNode') || url.searchParams.get('maxnode') || 300;
 								maxNode = maxNode > 0 && maxNode <= 1000 ? maxNode : 300;
 								let chunkedArray = splitArrayEvenly(ipsArray, maxNode);
 								let totalPage = Math.ceil(ipsArray.length / maxNode);
 								if (page > totalPage || page < 1) {
-									return new Response('Not found', { status: 404 });
+									return new Response('The data is empty.', { status: 200 });
 								}
 								let ipsArrayChunked = chunkedArray[page - 1];
-								let [nodeNames, proxyies] = buildPrxyNameClashJSON(
-									ipsArrayChunked,
-									hostName,
-									password,
-									defaultPort,
-									HTTP_WITH_PORTS,
-									HTTPS_WITH_PORTS
-								);
-								// 抓取clash配置模板
-								let clash_template = await fetchWebPageContent(clash_template_url);
+								let [nodeNames, proxyies] = buildYamls(ipsArrayChunked, hostName, password, defaultPort, HTTP_WITH_PORTS, HTTPS_WITH_PORTS);
+								let confTemplate = await fetchWebPageContent(confTemplateUrl);
 								if (nodeNames) {
 									// 替换clash模板中的对应的字符串，生成clash配置文件
-									let replaceProxyies = clash_template.replace(
+									let replaceProxyies = confTemplate.replace(
 										new RegExp(
 											atob(
 												'ICAtIHtuYW1lOiAwMSwgc2VydmVyOiAxMjcuMC4wLjEsIHBvcnQ6IDgwLCB0eXBlOiBzcywgY2lwaGVyOiBhZXMtMTI4LWdjbSwgcGFzc3dvcmQ6IGExMjM0NTZ9'
@@ -168,13 +183,28 @@ const worker_default = {
 										),
 										proxyies.join('\n')
 									);
-									resultString = replaceProxyies.replace(
+									html_doc = replaceProxyies.replace(
 										new RegExp(atob('ICAgICAgLSAwMQ=='), 'g'),
 										nodeNames.map((ipWithPort) => `      - ${ipWithPort}`).join('\n')
 									);
 								}
+							} else if (target === base64Decode('c2luZ2JveA')) {
+								// singbox
+								let maxNode = url.searchParams.get('maxNode') || url.searchParams.get('maxnode') || 50;
+								maxNode = maxNode > 0 && maxNode <= 100 ? maxNode : 50;
+								let chunkedArray = splitArrayEvenly(ipsArray, maxNode);
+								let totalPage = Math.ceil(ipsArray.length / maxNode);
+								if (page > totalPage || page < 1) {
+									return new Response('The data is empty.', { status: 200 });
+								}
+								let ipsArrayChunked = chunkedArray[page - 1];
+								let [_, outbds] = buildJsons(ipsArrayChunked, hostName, password, defaultPort, HTTP_WITH_PORTS, HTTPS_WITH_PORTS);
+								html_doc = base64Decode('ew0KICAib3V0Ym91bmRzIjogWw0KI291dGJkcyMNCiAgXQ0KfQ').replace('#outbds#', outbds.join(',\n'));
 							}
-							return new Response(resultString, {
+							if (!html_doc || html_doc.trim().length === 0) {
+								html_doc = '发生未知错误！';
+							}
+							return new Response(html_doc, {
 								status: 200,
 								headers: {
 									'Content-Type': 'text/plain;charset=utf-8',
@@ -182,7 +212,7 @@ const worker_default = {
 							});
 						}
 					default:
-						return new Response('404 Not found', {
+						return new Response('您无相关的权限访问！', {
 							status: 404,
 							headers: {
 								'Content-Type': 'text/plain;charset=utf-8',
@@ -191,13 +221,13 @@ const worker_default = {
 				}
 			} else {
 				const pathString = url.pathname;
-				if (pathString.includes('/proxyip=')) {
-					const pathPoxyip = pathString.split('=')[1];
-					if (isValidProxyIP(pathPoxyip)) {
-						proxyIP = pathPoxyip;
+				if (pathString.includes('/pyip=')) {
+					const pathLandingAddress = pathString.split('=')[1];
+					if (isValidLandingAddress(pathLandingAddress)) {
+						landingAddress = pathLandingAddress;
 					}
 				}
-				return await trojanOverWSHandler(request);
+				return await a1(request);
 			}
 		} catch (err) {
 			let e = err;
@@ -206,7 +236,7 @@ const worker_default = {
 	},
 };
 
-async function trojanOverWSHandler(request) {
+async function a1(request) {
 	const webSocketPair = new WebSocketPair();
 	const [client, webSocket] = Object.values(webSocketPair);
 	webSocket.accept();
@@ -237,7 +267,7 @@ async function trojanOverWSHandler(request) {
 						return;
 					}
 
-					const { hasError, message, addressRemote = '', portRemote = 443, rawClientData } = await parseTrojanHeader(chunk);
+					const { hasError, message, addressRemote = '', portRemote = 443, rawClientData } = await parseTr0janHeader(chunk);
 
 					if (hasError) {
 						throw new Error(message);
@@ -265,7 +295,7 @@ async function trojanOverWSHandler(request) {
 	});
 }
 
-async function parseTrojanHeader(buffer) {
+async function parseTr0janHeader(buffer) {
 	if (buffer.byteLength < 56) {
 		return {
 			hasError: true,
@@ -369,10 +399,10 @@ async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawCli
 		return tcpSocket2;
 	}
 	async function retry() {
-		// 分离ProxyIP的host和port端口（支持"域名、IPv4、[IPv6]、域名:端口、IPv4:端口、[IPv6]:端口"）
-		let porxyip_json = parseProxyIP(proxyIP);
-		let host = porxyip_json.host || addressRemote;
-		let port = porxyip_json.port || portRemote;
+		// 分离landingAddress的host和port端口（支持"域名、IPv4、[IPv6]、域名:端口、IPv4:端口、[IPv6]:端口"）
+		let landingAddressJson = parseLandingAddress(landingAddress);
+		let host = landingAddressJson.host || addressRemote;
+		let port = landingAddressJson.port || portRemote;
 
 		const tcpSocket2 = await connectAndWrite(host, port);
 		tcpSocket2.closed
