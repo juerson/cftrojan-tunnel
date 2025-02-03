@@ -27,16 +27,16 @@ function splitArrayEvenly(array, maxChunkSize) {
 	return splitArray(array, chunkSize);
 }
 
-// 检查是否为"(子)域名、IPv4、[IPv6]、(子)域名:端口、IPv4:端口、[IPv6]:端口"中任意一个？
-function isValidProxyIP(ip) {
+// 检查是否为：(子)域名、IPv4、[IPv6]、(子)域名:端口、IPv4:端口、[IPv6]:端口
+function isValidlandingAddr(ip) {
 	var reg =
 		/^(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d{1,5})?|(?:(?:\d{1,3}\.){3}\d{1,3})(?::\d{1,5})?|(?:\[[0-9a-fA-F:]+\])(?::\d{1,5})?)$/;
 	return reg.test(ip);
 }
 
-// 解析path输入的PROXYIP字符串，返回host和port的json值
-function parseProxyIP(address) {
-	// 匹配地址格式：(子)域名、IPv4、[IPv6]、(子)域名:端口、IPv4:端口、[IPv6]:端口
+// 解析Host和Port，支持格式：(子)域名、IPv4、[IPv6]、(子)域名:端口、IPv4:端口、[IPv6]:端口
+function parselandingAddr(address) {
+	
 	const regex =
 		/^(?:(?<domain>(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(?::(?<port>\d{1,5}))?|(?<ipv4>(?:\d{1,3}\.){3}\d{1,3})(?::(?<port_ipv4>\d{1,5}))?|(?<ipv6>\[[0-9a-fA-F:]+\])(?::(?<port_ipv6>\d{1,5}))?)$/;
 
@@ -58,8 +58,8 @@ function getRandomElement(array) {
 }
 
 module.exports = {
+	isValidlandingAddr,
+	parselandingAddr,
 	splitArrayEvenly,
-	isValidProxyIP,
-	parseProxyIP,
 	getRandomElement,
 };
