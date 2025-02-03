@@ -5,11 +5,11 @@ workers_dev = true
 
 [vars]
 # 常用参数
-SHA224PASS = 'g7R13Q1o6tl71Boa4D'
-PROXYIP = ''
-# 查询节点LINK的配置模板、订阅
-CONFIG_PASSWORD = ''
-SUB_PASSWORD = ''
+PASS_CODE = 'a1234567' # 没有经过sha224加密的字符串
+LANDING_ADDRESS = ''   # 跟以前的PROXYIP的功能一样，换一个名字而已
+# 查询节点的配置模板、订阅
+CONFIG_PASSWORD = '' # 查看节点配置的密码
+SUB_PASSWORD = ''    # 查看节点订阅的密码
 # GitHub配置（读取私有文件的配置）
 GITHUB_TOKEN = ''      # github token
 GITHUB_OWNER = ''      # 仓库拥有者
