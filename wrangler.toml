@@ -19,3 +19,6 @@ GITHUB_OWNER = ''      										# 仓库拥有者
 GITHUB_REPO = ''       										# 仓库名
 GITHUB_BRANCH = 'main' 										# 分支名
 GITHUB_FILE_PATH = ''  										# 文件路径(相对于仓库根目录)
+
+# 更改数据源URL，格式为 https://example.com/data.txt
+DATA_SOURCE_URL = ''											# 指优选IP和域名的txt文件，无端口且每行一个
