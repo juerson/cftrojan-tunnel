@@ -1,5 +1,5 @@
 /**
- * 将UTF8字符串进行Base64加密
+ * 将UTF8字符串进行Base64编码
  *
  * 该函数，适合bytes数组长度过大（如超过数万个字节）的，
  * 已解决了 "RangeError: Maximum call stack size exceeded" 错误，
@@ -14,7 +14,7 @@ function base64Encode(str) {
 	return btoa(binary);
 }
 
-// 将base64加密的字符串转换为正经的字符串
+// base64解密
 function base64Decode(base64Str) {
 	let binary = atob(base64Str);
 	let bytes = new Uint8Array([...binary].map((char) => char.charCodeAt(0)));
