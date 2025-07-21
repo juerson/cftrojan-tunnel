@@ -1,6 +1,5 @@
 /**
  * 异步函数：使用提供的GitHub访问令牌(token)和其他参数，从指定的仓库中获取文件内容。
- *
  * @param {string} token - GitHub访问令牌，用于授权请求。
  * @param {string} owner - 仓库所有者的用户名。
  * @param {string} repo - 仓库名称。
@@ -10,40 +9,28 @@
  */
 async function fetchGitHubFile(token, owner, repo, filePath, branch = 'main') {
 	const githubUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`;
-
 	try {
-		// 发起GET请求到GitHub API，获取文件内容
 		const response = await fetch(githubUrl, {
-			method: 'GET',
 			headers: {
 				Authorization: `token ${token}`,
 				Accept: 'application/vnd.github.v3.raw',
-				'User-Agent': 'Cloudflare Worker',
+				'User-Agent': 'Mozilla/5.0',
 			},
 		});
-
 		if (!response.ok) {
-			return {
-				body: '',
-				contentType: 'text/plain; charset=utf-8',
-			};
+			console.error(`GitHub API Error: ${response.status} ${response.statusText}`);
+			return emptyFile();
 		}
-
-		// 从响应头中获取实际的内容类型，如果不存在则默认为二进制流类型
 		const contentType = response.headers.get('Content-Type') || 'application/octet-stream';
-
-		// 将响应内容转换为ArrayBuffer格式，以便于后续处理
 		const body = await response.arrayBuffer();
-
-		return {
-			body: body,
-			contentType: contentType,
-		};
+		return { body, contentType };
 	} catch (error) {
-		return {
-			body: '',
-			contentType: 'text/plain; charset=utf-8',
-		};
+		console.error(`Network or parsing error: ${error.message}`);
+		return emptyFile();
+	}
+
+	function emptyFile() {
+		return { body: new ArrayBuffer(0), contentType: 'text/plain; charset=utf-8' };
 	}
 }
 
@@ -51,19 +38,17 @@ async function fetchGitHubFile(token, owner, repo, filePath, branch = 'main') {
  * @param {string} ipaddrURL - 要抓取网页的内容
  * @returns {string} - 返回网页的全部内容
  */
-async function fetchWebPageContent(URL) {
+async function fetchWebPageContent(url) {
 	try {
-		const response = await fetch(URL);
-		if (!response.ok) {
-			throw new Error(`Failed to get: ${response.status}`);
-			return '';
-		} else {
+		const response = await fetch(url);
+		if (response.ok) {
 			return await response.text();
 		}
+		console.error(`Failed to get: ${response.status}`);
 	} catch (err) {
-		console.error(`Failed to fetch ${URL} web conten: ${err.message}`);
-		return '';
+		console.error(`Failed to fetch ${url} web content: ${err.message}`);
 	}
+	return '';
 }
 
 module.exports = {
