@@ -1,0 +1,12 @@
+{
+	"compact": true,
+	"debugProtection": false,
+	"disableConsoleOutput": true,
+	"identifierNamesGenerator": "mangled",
+	"selfDefending": false,
+	"stringArray": true,
+	"stringArrayEncoding": [],
+	"stringArrayThreshold": 0.8,
+	"unicodeEscapeSequence": false,
+  "identifiersPrefix": "_myObf_"
+}
