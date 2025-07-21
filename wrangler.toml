@@ -5,14 +5,17 @@ workers_dev = true
 
 [vars]
 # 常用参数
-PASS_CODE = 'a1234567' # 没有经过sha224加密的字符串
-LANDING_ADDRESS = ''   # 跟以前的PROXYIP的功能一样，换一个名字而已
-# 查询节点的配置模板、订阅
-CONFIG_PASSWORD = '' # 查看节点配置的密码
-SUB_PASSWORD = ''    # 查看节点订阅的密码
-# GitHub配置（读取私有文件的配置）
-GITHUB_TOKEN = ''      # github token
-GITHUB_OWNER = ''      # 仓库拥有者
-GITHUB_REPO = ''       # 仓库名
-GITHUB_BRANCH = 'main' # 分支名
-GITHUB_FILE_PATH = ''  # 文件路径，相对路径
+PASS_CODE = 'a1234567' 										# 没有经过sha224加密的字符串，trojan节点要写这个密码
+LANDING_ADDRESS = ''   										# 跟大家所知的PROXYIP的一样，换一个名字而已，格式为host、[ipv6]、host:port
+NAT64_IPV6PREFIX = '2001:67c:2960:6464::' # NAT64的IPv6前缀
+
+# 查看节点的配置模板、订阅
+CONFIG_PASSWORD = '' 											# 查看节点配置的密码
+SUB_PASSWORD = ''    											# 查看节点订阅的密码
+
+# GitHub配置(读取私有文件的配置)
+GITHUB_TOKEN = ''      										# github token
+GITHUB_OWNER = ''      										# 仓库拥有者
+GITHUB_REPO = ''       										# 仓库名
+GITHUB_BRANCH = 'main' 										# 分支名
+GITHUB_FILE_PATH = ''  										# 文件路径，相对路径
