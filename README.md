@@ -1,23 +1,36 @@
-将`_worker.js`或`_worker_清爽版.js`代码托管到Cloudflare的Workers或Pages后，按照下面内容操作。
+将`_worker.js`或`_worker_基础版.js`代码托管到Cloudflare的Workers或Pages后，按照下面内容操作。
 
 ### 一、在Cloudflare中设置环境变量：
 
-| **变量名称**    | **说明**                                                     |
-| --------------- | ------------------------------------------------------------ |
-| PASS_CODE       | (必须) 没有经过sha224加密的密码，在**代码**或**环境变量**中设置，比如：0648919d-8bf1-4d4c-8525-36cf487506ec、f3mkT3C6 |
-| LANDING_ADDRESS | (非必须) 不设置，一些网站无法打开，可在**代码**或**环境变量**中设置，格式：(Sub-)Domain:PORT、IPv4:PORT、[IPv6]:PORT（没有端口，默认是443端口） |
-| CONFIG_PASSWORD | (可选) 部署订阅版的，才用到这个变量，通过后面的链接查看v2ray、singbox、clash的配置例子，可在**代码**或**环境变量**中设置。使用：`http://your_worker_domain/config?pwd={CONFIG_PASSWORD}` |
-| SUB_PASSWORD    | (可选) 部署订阅版的，才用到这个变量，通过后面的链接可以查看订阅（支持v2ray、singbox、clash三种订阅）。使用：`https://your_worker_domain/sub?pwd={SUB_PASSWORD}&target={v2ray singbox clash}`，注意：订阅中所用到的ipaddr数据要修改成自己的，要不然订阅的内容一直都会不变的。 |
+| **变量名称**     | **说明**                                                     |
+| ---------------- | ------------------------------------------------------------ |
+| PASS_CODE        | (必须) 没有经过sha224加密的密码，比如：0648919d-8bf1-4d4c-8525-36cf487506ec、f3mkT3C6 |
+| LANDING_ADDRESS  | (非必须) 跟大家所知的PROXYIP的一样，换一个名字而已，格式为host:port、host、[ipv6]（没有端口，默认是443端口） |
+| NAT64_IPV6PREFIX | (非必须) 它仅次于LANDING_ADDRESS。用于修改NAT64的IPv6前缀，类似"2001:67c:2960:6464::"，代码已经写有了，这个不用设置，不是有效NAT64的IPv6前缀，白设置，依然无法访问一些cf网站，跟LANDING_ADDRESS作用相同，只有LANDING_ADDRESS值没有才使用它 |
+| CONFIG_PASSWORD  | (非必须) 部署订阅版的，才用到这个变量，通过后面的链接查看v2ray、singbox、clash的配置例子，使用：`http://your_worker_domain/config?pwd={CONFIG_PASSWORD}` |
+| SUB_PASSWORD     | (非必须) 部署订阅版的，才用到这个变量，通过后面的链接可以查看订阅（支持v2ray、singbox、clash三种订阅）。使用：`https://your_worker_domain/sub?pwd={SUB_PASSWORD}&target={v2ray singbox clash}`，注意：订阅中所用到的DATA_SOURCE_URL数据要修改成自己的，要不然订阅的内容一直都会不变的。 |
+| GITHUB_TOKEN     | (非必须) Github token                                        |
+| GITHUB_OWNER     | (非必须) 仓库拥有者                                          |
+| GITHUB_REPO      | (非必须) 仓库名                                              |
+| GITHUB_BRANCH    | (非必须) 分支名(通常是main/master)                           |
+| GITHUB_FILE_PATH | (非必须) 文件路径(相对于仓库根目录)                          |
+| DATA_SOURCE_URL  | (非必须) 用于更改数据源URL，它指的是优选IP和域名的txt文件，无端口且每行一个，格式为 "https\://example.com/data.txt"，当GitHub的所有变量参数都没有设置或无效，包括没有读取到数据时，它才有效。 |
 
-#### 1、部署清爽版代码，要用到的环境变量
+#### 1、部署基础版代码，要用到的环境变量
 
-<img src="images\环境变量1.png" />
-
-
+<img src="images\基础版-可设置的环境变量.png" />
 
 #### 2、部署订阅版代码，要用到的环境变量
 
-<img src="images\环境变量2.png" />
+除了添加前面基础版提到的环境变量外，还要添加（二选一）：
+
+- 1、使用公开的URL数据，还要添加下面的变量
+
+<img src="images\订阅版-可设置的环境变量1.png" />
+
+- 2、使用GitHub私有仓库的文件，还要添加下面的变量
+
+<img src="images\订阅版-可设置的环境变量2-使用GitHub私有仓库.png" />
 
 注意：使用Pages方法部署的，添加、修改`环境变量`，要重新部署Pages才生效。
 
@@ -26,19 +39,19 @@
 - 使用例子
 
 ```
-https://a.abc.workers.dev/config?pwd=123456  # 假如123456是CF后台中，环境变量CONFIG_PASSWORD设置的值
+https://a.abc.workers.dev/config?pwd=123  # 假如123是CF后台中，环境变量CONFIG_PASSWORD设置的值
 ```
 
 ### 三、订阅版，怎么使用订阅：
 
-| 参数            | 含义                                                         |
-| --------------- | ------------------------------------------------------------ |
-| pwd             | (必须) 查看订阅的密码，密码是CF后台中环境变量SUB_PASSWORD设置的值 |
-| target          | (可选) target=v2ray、singbox、clash，分别是v2ray分享链接的订阅、singbox的订阅、clash的订阅 |
-| page            | (可选) 页码，默认为1，显示哪一页的v2ray、singbox、clash订阅内容？ |
-| port            | (可选) 修改trojan的port值                                    |
-| host            | (可选) 修改trojan的sni和host的值，几乎不用                   |
-| maxNode/maxnode | (可选) 修改每页最多写多少个节点，脚本会计算每页的节点数(平均数)，v2ray分享链接默认为1000，可选1-5000；clash默认为300，可选1-1000；singbox默认50，可选1~100 |
+| 参数   | 含义                                                         |
+| ------ | ------------------------------------------------------------ |
+| pwd    | (必须) 查看订阅的密码，密码是CF后台中环境变量SUB_PASSWORD设置的值 |
+| target | (可选) target=v2ray、singbox、clash，分别是v2ray分享链接的订阅、singbox的订阅、clash的订阅 |
+| page   | (可选) 页码，默认为1，显示哪一页的v2ray、singbox、clash订阅内容？ |
+| port   | (可选) 修改trojan的port值                                    |
+| host   | (可选) 修改trojan的sni和host的值，几乎不用                   |
+| max    | (可选) 修改每页最多写多少个节点                              |
 
 #### 1、v2ray订阅，使用例子：
 
@@ -46,8 +59,8 @@ https://a.abc.workers.dev/config?pwd=123456  # 假如123456是CF后台中，环�
 https://a.abc.workers.dev/sub?pwd=123456&target=v2ray                    # 第一页的trojan节点
 https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&page=2              # 翻页，存在其它页，每页最多1000节点
 https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&port=2053           # 改为其它端口
-https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&hostName=githu.com  # 修改节点信息中的sni和host值
-https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&page=2&maxNode=200  # 跟其它参数组合
+https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&host=githu.com  # 修改节点信息中的sni和host值
+https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&page=2&max=200  # 跟其它参数组合
 ```
 
 #### 2、Clash订阅，使用例子：
@@ -56,8 +69,8 @@ https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&page=2&maxNode=200  # 跟�
 https://a.abc.workers.dev/sub?pwd=123456&target=clash                     # 第一页的clash配置
 https://a.abc.workers.dev/sub?pwd=123456&target=clash&page=2              # 翻页，存在其它页，每页最多300节点
 https://a.abc.workers.dev/sub?pwd=123456&target=clash&port=2053           # 改为其它端口
-https://a.abc.workers.dev/sub?pwd=123456&target=clash&hostName=github.com  # 修改节点信息中的sni和host值
-https://a.abc.workers.dev/sub?pwd=123456&target=clash&page=2&maxNode=200
+https://a.abc.workers.dev/sub?pwd=123456&target=clash&host=github.com  # 修改节点信息中的sni和host值
+https://a.abc.workers.dev/sub?pwd=123456&target=clash&page=2&max=200
 ```
 #### 3、Singbox订阅，使用例子：
 
@@ -65,8 +78,8 @@ https://a.abc.workers.dev/sub?pwd=123456&target=clash&page=2&maxNode=200
 https://a.abc.workers.dev/sub?pwd=123456&target=singbox                     # 第一页的singbox配置
 https://a.abc.workers.dev/sub?pwd=123456&target=singbox&page=2              # 翻页，存在其它页，每页最多50节点
 https://a.abc.workers.dev/sub?pwd=123456&target=singbox&port=2053           # 改为其它端口
-https://a.abc.workers.dev/sub?pwd=123456&target=singbox&hostName=github.com  # 修改节点信息中的sni和host值
-https://a.abc.workers.dev/sub?pwd=123456&target=singbox&page=2&maxNode=30
+https://a.abc.workers.dev/sub?pwd=123456&target=singbox&host=github.com  # 修改节点信息中的sni和host值
+https://a.abc.workers.dev/sub?pwd=123456&target=singbox&page=2&max=30
 ```
 
 
@@ -95,15 +108,11 @@ https://a.abc.workers.dev/sub?pwd=123456&target=singbox&page=2&maxNode=30
 | GITHUB_BRANCH    | （可选）私有文件所在的分支名称，默认是main，如果您创建了其它分支，就改为您创建的分支名称 |
 | GITHUB_FILE_PATH | （必须）私有文件所在的路径（是相对路径，不是绝对路径）       |
 
-<img src="images\GitHub相关变量.png" />
+<img src="images\订阅版-GitHub各变量对照关系图.png" />
 
 - 第二种方法：在`_worker.js`源码中设置默认值（不推荐）
 
-  与前面设置变量效果一样，名称不同而已，该方法可能会泄露您的 GitHub token。
-
-<img src="images\GitHub相关变量2.png" />
-
-注意：代码所在的行数可能跟这里不同。
+<img src="images\GitHub相关变量-代码中修改.png" />
 
 ##### 4.2 GITHUB_TOKEN 值怎么获取？
 
@@ -166,11 +175,11 @@ IPv6地址：
 
 ### 六、温馨提示
 
-1、特此提醒`dist/worker_清爽版.js` 代码经过js混淆得到 `_worker_清爽版.js`，`dist/worker_订阅版.js` 代码经过js混淆得到 `_worker.js`，要清楚自己部署那个代码。
+1、特此提醒`dist/worker_基础版.js` 代码经过js混淆得到 `_worker_基础版.js`，`dist/worker_订阅版.js` 代码经过js混淆得到 `_worker.js`，要清楚自己部署那个代码。
 
 2、路径`src/worker.js`中的代码为开发中写的代码，大部代码根据[@ca110us](https://github.com/ca110us/epeius/blob/main/src/worker.js)修改而来，如果不是开发者，使用`_wokers.js`的代码，简单修改一下前面提到的环境变量，部署到cloudflare wokers或pages就可以使用。
 
-3、部署时，有几率遇到Error 1101错误，建议将原js代码进行混淆[Link](https://houbb.github.io/jsf/c/)，如果js混淆后，依然无法解决问题，就等开发者遇到该问题且有时间再解决这个问题。
+3、部署时，有几率遇到Error 1101错误，建议将原js代码进行混淆，如果js混淆后，依然无法解决问题，就等开发者遇到该问题且有时间再解决这个问题。
 
 <img src="images\Error 1101.png" />
 
