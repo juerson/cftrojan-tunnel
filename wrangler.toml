@@ -14,8 +14,8 @@ CONFIG_PASSWORD = '' 											# 查看节点配置的密码
 SUB_PASSWORD = ''    											# 查看节点订阅的密码
 
 # GitHub配置(读取私有文件的配置)
-GITHUB_TOKEN = ''      										# github token
+GITHUB_TOKEN = ''      										# Github token
 GITHUB_OWNER = ''      										# 仓库拥有者
 GITHUB_REPO = ''       										# 仓库名
 GITHUB_BRANCH = 'main' 										# 分支名
-GITHUB_FILE_PATH = ''  										# 文件路径，相对路径
+GITHUB_FILE_PATH = ''  										# 文件路径(相对于仓库根目录)
