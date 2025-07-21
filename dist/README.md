@@ -1,1 +1,0 @@
-This folder contains the built output assets for the worker "cftrojan-tunnel-worker" generated at 2025-02-03T11:20:37.993Z.
