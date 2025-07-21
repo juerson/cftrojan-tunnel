@@ -1,6 +1,7 @@
 history
 dist/worker.js.map
 dist/README.md
+dist/worker.js
 tool/worker.js
 
 # Logs
