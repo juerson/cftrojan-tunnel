@@ -7,7 +7,7 @@ const sha224 = require('js-sha256').sha224;
  * @param {string} str 需要加密的原始字符串。
  * @return {string} 返回使用SHA-224算法加密后的散列字符串。
  */
-function hash224encrypt(str) {
+function hash224Encrypt(str) {
 	return sha224(str);
 }
 
@@ -17,6 +17,6 @@ function isValidSHA224(hash) {
 }
 
 module.exports = {
-	hash224encrypt,
+	hash224Encrypt,
 	isValidSHA224,
 };
