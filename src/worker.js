@@ -1,282 +1,293 @@
 import { connect } from 'cloudflare:sockets';
-const { hash224encrypt, isValidSHA224 } = require('./sha224');
-const { splitArrayEvenly, isValidLandingAddress, parseLandingAddress } = require('./addressHandle');
+const { hash224Encrypt } = require('./sha224');
+const { parseHostPort, ipsPaging } = require('./addressHandle');
 const { fetchGitHubFile, fetchWebPageContent } = require('./crawler');
 const { getBaseConfig, buildLinks, buildYamls, buildJsons } = require('./output');
 const { base64Decode } = require('./base64');
 
-let landingAddress = '';
+const landingAddress = '';
+let nat64IPv6Prefix = '2001:67c:2960:6464::';
+const plaintextPassword = 'a1234567';
+let sha224Password = hash224Encrypt(plaintextPassword);
+let parsedLandingAddr = { hostname: null, port: null };
 
-let plaintextPassword = 'a1234567'; // 明文密码，没有经过sha224加密的密码
-let sha224Password = hash224encrypt(plaintextPassword); // 经过sha224加密的密码
-
+// 重定向的域名列表
 const domainList = [
-	'https://www.iq.com',
-	'https://www.dell.com',
 	'https://www.bilibili.com',
-	'https://www.wix.com/',
-	'https://landingsite.ai/',
-	'https://vimeo.com/',
-	'https://www.pexels.com/',
-	'https://www.revid.ai/',
+	'https://www.nicovideo.jp',
+	'https://tv.naver.com',
+	'https://www.hotstar.com',
+	'https://www.netflix.com',
+	'https://www.dailymotion.com',
+	'https://www.youtube.com',
+	'https://www.hulu.com',
+	'https://fmovies.llc',
+	'https://hdtodayz.to',
+	'https://radar.cloudflare.com',
 ];
-
-const HTTP_WITH_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
-const HTTPS_WITH_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
-
-// —————————————————————————————————————————— 该参数用于访问GitHub的私有仓库文件 ——————————————————————————————————————————
-const DEFAULT_GITHUB_TOKEN = ''; // GitHub的令牌
-const DEFAULT_OWNER = ''; // GitHub的用户名
-const DEFAULT_REPO = ''; // GitHub的仓库名
-const DEFAULT_BRANCH = 'main'; // GitHub的分支名
-const DEFAULT_FILE_PATH = 'README.md'; // GitHub的文件路径
-// —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
-
-let confTemplateUrl = 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/clashTemplate.yaml'; // clash模板
-let ipaddrURL = 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/ipaddr.txt';
+// 设置环境变量的默认值
+const DEFAULTS = {
+	github: {
+		GITHUB_TOKEN: '', // 令牌
+		GITHUB_OWNER: '', // 仓库所有者
+		GITHUB_REPO: '', // 仓库名称
+		GITHUB_BRANCH: 'main', // 分支名称
+		GITHUB_FILE_PATH: 'README.md', // 文件路径(相对于仓库根目录)
+	},
+	password: {
+		CONFIG_PASSWORD: '', // 查看节点配置的密码
+		SUB_PASSWORD: '', // 查看节点订阅的密码
+	},
+	urls: {
+		DATA_SOURCE_URL: 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/domain.txt', // 数据源URL
+		CLASH_TEMPLATE_URL: 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/clashTemplate.yaml', // clash模板
+	},
+};
+// 手动这里设置最大节点数
+const defaultMaxNodeMap = {
+	v2ray: {
+		upperLimit: 2000, // 最大上限
+		default: 300, // 默认值，传入的数据不合法使用它
+	},
+	singbox: {
+		upperLimit: 100,
+		default: 30,
+	},
+	clash: {
+		upperLimit: 100,
+		default: 30,
+	},
+	'': {
+		// 这个用于当target输入错误兜底的
+		upperLimit: 500,
+		default: 300,
+	},
+};
 
 const worker_default = {
-	/**
-	 * @param {import("@cloudflare/workers-types").Request} request
-	 * @param {{PASS_CODE: string, LANDING_ADDRESS: string}} env
-	 * @param {import("@cloudflare/workers-types").ExecutionContext} ctx
-	 * @returns {Promise<Response>}
-	 */
 	async fetch(request, env, ctx) {
 		try {
-			// ———————————————————————————— 访问GitHub的私有仓库文件 ————————————————————————————
-			const GITHUB_TOKEN = env.GITHUB_TOKEN || DEFAULT_GITHUB_TOKEN;
-			const OWNER = env.GITHUB_OWNER || DEFAULT_OWNER;
-			const REPO = env.GITHUB_REPO || DEFAULT_REPO;
-			const BRANCH = env.GITHUB_BRANCH || DEFAULT_BRANCH;
-			const FILE_PATH = env.GITHUB_FILE_PATH || DEFAULT_FILE_PATH;
-			// ————————————————————————————————————————————————————————————————————————————————
-			let configPassword = env.CONFIG_PASSWORD || '';
-			let subPassword = env.SUB_PASSWORD || '';
-			// ————————————————————————————————————————————————————————————————————————————————
-			landingAddress = env.LANDING_ADDRESS || landingAddress;
-			let password = env.PASS_CODE || plaintextPassword; // 明文密码，没有经过sha224加密的密码
-			if (password !== plaintextPassword) {
-				sha224Password = hash224encrypt(password);
-			}
+			/**
+			 * 只有poxyAddr（也就是大家公认的PROXYIP）不存在才使用它
+			 * 利用DNS64服务器进行网络地址与协议转换时，同时作为PROXYIP使用
+			 *
+			 * 优先级：
+			 *   客户端的path"/pyip=xxx" > cf 环境变量设置的LANDING_ADDRESS > 代码中的landingAddress > NAT64_IPV6PREFIX > nat64IPv6Prefix
+			 */
+			nat64IPv6Prefix = env.NAT64_IPV6PREFIX || nat64IPv6Prefix;
+			let poxyAddr = env.LANDING_ADDRESS || landingAddress;
+			let password = env.PASS_CODE || plaintextPassword;
 
-			if (!isValidSHA224(sha224Password)) {
-				throw new Error('sha224Password is not valid');
-			}
+			if (password !== plaintextPassword) sha224Password = hash224Encrypt(password);
 
-			const upgradeHeader = request.headers.get('Upgrade');
 			const url = new URL(request.url);
+			const path = url.pathname;
+			const upgradeHeader = request.headers.get('Upgrade');
 			if (!upgradeHeader || upgradeHeader !== 'websocket') {
-				const target = url.searchParams.get('target');
-				const hostName = url.searchParams.get('host') || url.hostname;
-				let pwdPassword = url.searchParams.get('pwd') || ''; // 密码
-				let defaultPort = url.searchParams.get('port') || 0; // 默认端口
-				let page = url.searchParams.get('page') || 1; // 从1开始的页码
+				// 注意：CONFIG_PASSWORD, SUB_PASSWORD, pwdPassword 都已URI编码
+				const config = {
+					env: extractGroupedEnv(env, DEFAULTS),
+					query: extractUrlParams(url, defaultMaxNodeMap),
+				};
 
-				if (pwdPassword) {
-					pwdPassword = encodeURIComponent(pwdPassword);
-					subPassword = encodeURIComponent(subPassword);
-					configPassword = encodeURIComponent(configPassword);
-				}
-
-				switch (url.pathname) {
-					case '/':
-						const randomDomain = domainList[Math.floor(Math.random() * domainList.length)];
-						const redirectResponse = new Response('', {
-							status: 301,
-							headers: {
-								Location: randomDomain,
-							},
-						});
-						return redirectResponse;
-					case `/config`:
-						let html_doc = ''; // 要显示的网页内容
-						let responseStatus = 200; // 响应的状态码
-						if (pwdPassword === configPassword) {
-							html_doc = getBaseConfig(password, hostName);
-							responseStatus = 200;
-						} else {
-							html_doc = '您无相关的权限访问！'; // pwd密码输入错误，不允许查看配置信息
-							responseStatus = 404;
-						}
-						return new Response(html_doc, {
-							status: responseStatus,
-							headers: {
-								'Content-Type': 'text/plain;charset=utf-8',
-							},
-						});
-					case '/sub':
-						if (pwdPassword === subPassword) {
-							let ips_string = '';
-							try {
-								// 读取 GitHub 私有仓库的优选IP或域名，读取不到就默认为空字符串
-								const fileContent = await fetchGitHubFile(GITHUB_TOKEN, OWNER, REPO, FILE_PATH, BRANCH);
-								const decoder = new TextDecoder('utf-8');
-								ips_string = decoder.decode(fileContent.body);
-							} catch (error) {
-								console.log(`Error: ${error.message}`);
-							}
-							// 如果读取到GitHub私有文件的内容为空时，就使用ipaddrURL的IP地址
-							ips_string = ips_string !== '' ? ips_string : await fetchWebPageContent(ipaddrURL);
-							if (ips_string.length == 0) {
-								return new Response('数据为空，无法生成订阅！', {
-									status: 200,
-									headers: {
-										'Content-Type': 'text/plain;charset=utf-8',
-									},
-								});
-							}
-							let ipsArray = ips_string
-								.trim()
-								.split(/\r\n|\n|\r/)
-								.map((ip) => ip.trim());
-
-							let html_doc = '';
-							if (target === base64Decode('djJyYXk')) {
-								// v2ray
-								let maxNodeNumber = url.searchParams.get('maxNode') || url.searchParams.get('maxnode') || 1000;
-								maxNodeNumber = maxNodeNumber > 0 && maxNodeNumber <= 5000 ? maxNodeNumber : 1000;
-								// splitArrayEvenly函数：ipArray数组分割成每个子数组都不超过maxNode的数组(子数组之间元素个数平均分配)
-								let chunkedArray = splitArrayEvenly(ipsArray, maxNodeNumber);
-								let totalPage = Math.ceil(ipsArray.length / maxNodeNumber); // 计算总页数
-								if (page > totalPage || page < 1) {
-									return new Response('The data is empty.', { status: 200 });
-								}
-								// 使用哪个子数组的数据？
-								let ipsArrayChunked = chunkedArray[page - 1];
-								html_doc = buildLinks(ipsArrayChunked, hostName, password, defaultPort, HTTP_WITH_PORTS, HTTPS_WITH_PORTS);
-							} else if (target === base64Decode('Y2xhc2g')) {
-								// clash
-								// ---------------------------------------------
-								// 剔除workers.dev生成trojan协议的clash订阅，无法使用的情况。
-								const isCFworkersDomain = hostName.endsWith(base64Decode('d29ya2Vycy5kZXY')) ? true : false;
-								if (isCFworkersDomain) {
-									html_doc = base64Decode(
-										'6K2m5ZGK77ya5L2/55So5Z+f5ZCNI2hvc3ROYW1lI+eUn+aIkOeahGNsYXNo6K6i6ZiF5peg5rOV5L2/55So77yB57uI5q2i5pON5L2c44CC'
-									).replace('#hostName#', hostName);
-									return new Response(html_doc, {
-										status: 200,
-										headers: {
-											'Content-Type': 'text/plain;charset=utf-8',
-										},
-									});
-								}
-								// ---------------------------------------------
-								let maxNode = url.searchParams.get('maxNode') || url.searchParams.get('maxnode') || 300;
-								maxNode = maxNode > 0 && maxNode <= 1000 ? maxNode : 300;
-								let chunkedArray = splitArrayEvenly(ipsArray, maxNode);
-								let totalPage = Math.ceil(ipsArray.length / maxNode);
-								if (page > totalPage || page < 1) {
-									return new Response('The data is empty.', { status: 200 });
-								}
-								let ipsArrayChunked = chunkedArray[page - 1];
-								let [nodeNames, proxyies] = buildYamls(ipsArrayChunked, hostName, password, defaultPort, HTTP_WITH_PORTS, HTTPS_WITH_PORTS);
-								let confTemplate = await fetchWebPageContent(confTemplateUrl);
-								if (nodeNames) {
-									// 替换clash模板中的对应的字符串，生成clash配置文件
-									let replaceProxyies = confTemplate.replace(
-										new RegExp(
-											atob(
-												'ICAtIHtuYW1lOiAwMSwgc2VydmVyOiAxMjcuMC4wLjEsIHBvcnQ6IDgwLCB0eXBlOiBzcywgY2lwaGVyOiBhZXMtMTI4LWdjbSwgcGFzc3dvcmQ6IGExMjM0NTZ9'
-											),
-											'g'
-										),
-										proxyies.join('\n')
-									);
-									html_doc = replaceProxyies.replace(
-										new RegExp(atob('ICAgICAgLSAwMQ=='), 'g'),
-										nodeNames.map((ipWithPort) => `      - ${ipWithPort}`).join('\n')
-									);
-								}
-							} else if (target === base64Decode('c2luZ2JveA')) {
-								// singbox
-								let maxNode = url.searchParams.get('maxNode') || url.searchParams.get('maxnode') || 50;
-								maxNode = maxNode > 0 && maxNode <= 100 ? maxNode : 50;
-								let chunkedArray = splitArrayEvenly(ipsArray, maxNode);
-								let totalPage = Math.ceil(ipsArray.length / maxNode);
-								if (page > totalPage || page < 1) {
-									return new Response('The data is empty.', { status: 200 });
-								}
-								let ipsArrayChunked = chunkedArray[page - 1];
-								let [_, outbds] = buildJsons(ipsArrayChunked, hostName, password, defaultPort, HTTP_WITH_PORTS, HTTPS_WITH_PORTS);
-								html_doc = base64Decode('ew0KICAib3V0Ym91bmRzIjogWw0KI291dGJkcyMNCiAgXQ0KfQ').replace('#outbds#', outbds.join(',\n'));
-							}
-							if (!html_doc || html_doc.trim().length === 0) {
-								html_doc = '发生未知错误！';
-							}
-							return new Response(html_doc, {
-								status: 200,
-								headers: {
-									'Content-Type': 'text/plain;charset=utf-8',
-								},
-							});
-						}
-					default:
-						return new Response('您无相关的权限访问！', {
-							status: 404,
-							headers: {
-								'Content-Type': 'text/plain;charset=utf-8',
-							},
-						});
-				}
+				return await handleRequest(path, config, password, defaultMaxNodeMap);
 			} else {
-				const pathString = url.pathname;
-				if (pathString.includes('/pyip=')) {
-					const pathLandingAddress = pathString.split('=')[1];
-					if (isValidLandingAddress(pathLandingAddress)) {
-						landingAddress = pathLandingAddress;
-					}
-				}
-				return await a1(request);
+				// 仅支持host、[ipv6]、host:port格式
+				if (path.includes('/pyip=')) poxyAddr = path.split('/pyip=')[1];
+
+				let parsedAddr = parseHostPort(poxyAddr);
+				parsedLandingAddr = { hostname: parsedAddr?.hostname, port: parsedAddr?.port };
+
+				return await handleWebSocket(request);
 			}
 		} catch (err) {
-			let e = err;
-			return new Response(e.toString());
+			return new Response(err.toString());
 		}
 	},
 };
 
-async function a1(request) {
+function extractGroupedEnv(env, groupedDefaults, encodeFields = ['CONFIG_PASSWORD', 'SUB_PASSWORD']) {
+	const result = {};
+
+	for (const [groupName, vars] of Object.entries(groupedDefaults)) {
+		result[groupName] = {};
+		for (const [key, defaultVal] of Object.entries(vars)) {
+			let value = env[key] ?? defaultVal;
+			// 如果字段在encodeFields中，则对其值进行URI编码
+			if (encodeFields.includes(key)) {
+				value = encodeURIComponent(String(value));
+			}
+			result[groupName][key] = value;
+		}
+	}
+
+	return result;
+}
+
+function extractUrlParams(url, defaultMaxNodeMap, encodeFields = ['pwdPassword']) {
+	const search = url.searchParams;
+	const target = search.get('target') || '';
+	const defaultMax = defaultMaxNodeMap[target]?.default ?? defaultMaxNodeMap['']?.default; // ??后面的代码，用于预防target输入错误的情况
+	const rawParams = {
+		target,
+		hostName: search.get('host') || url.hostname,
+		pwdPassword: search.get('pwd') || '',
+		defaultPort: parseInt(search.get('port') || '0', 10),
+		maxNode: parseInt(search.get('max') || defaultMax.toString(), 10),
+		page: parseInt(search.get('page') || '1', 10),
+	};
+
+	for (const key of encodeFields) {
+		if (key in rawParams) {
+			rawParams[key] = encodeURIComponent(rawParams[key]);
+		}
+	}
+
+	return rawParams;
+}
+
+async function handleRequest(path, config, nodePassword, defaultMaxNodeMap) {
+	const { target, hostName, pwdPassword, defaultPort, maxNode, page } = config.query;
+	const { CONFIG_PASSWORD, SUB_PASSWORD } = config.env.password;
+	const { DATA_SOURCE_URL, CLASH_TEMPLATE_URL } = config.env.urls;
+	const github = config.env.github;
+
+	// 检查GitHub配置是否完整，任何一项参数为空都视为不完整
+	function isGitHubConfigComplete(githubConfig) {
+		return Object.values(githubConfig).every((val) => val !== '');
+	}
+
+	// 替换模板，匹配空白+符号+空白+占位符，这里指“  - ${proxies}”和“      - ${proxy_name}”所在行
+	function replaceTemplate(template, data) {
+		return template.replace(/(\s*[-*]\s*)\$\{(\w+)\}/g, (_, prefix, key) => {
+			return '\n' + data[key];
+		});
+	}
+
+	switch (path) {
+		case '/':
+			const randomDomain = domainList[Math.floor(Math.random() * domainList.length)];
+			const redirectResponse = new Response(null, { status: 301, headers: { Location: randomDomain } });
+			return redirectResponse;
+		case `/config`:
+			let html_doc = '404 Not Found',
+				status = 404;
+			if (pwdPassword == CONFIG_PASSWORD) {
+				html_doc = getBaseConfig(nodePassword, hostName);
+				status = 200;
+			}
+			return new Response(html_doc, { status: status, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+		case '/sub':
+			if (pwdPassword == SUB_PASSWORD) {
+				let ipContents = '';
+				if (isGitHubConfigComplete(github)) {
+					try {
+						const file = await fetchGitHubFile(
+							github?.GITHUB_TOKEN,
+							github?.GITHUB_OWNER,
+							github?.GITHUB_REPO,
+							github?.GITHUB_FILE_PATH,
+							github?.GITHUB_BRANCH
+						);
+						ipContents = new TextDecoder().decode(file.body);
+					} catch (e) {
+						console.log(`获取GitHub的数据失败：${e.message}`);
+					}
+				}
+				if (!ipContents.trim()) ipContents = await fetchWebPageContent(DATA_SOURCE_URL);
+				if (!ipContents.trim()) {
+					return new Response('Null Data', { status: 200, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+				}
+				let ipsArray = ipContents
+					.trim()
+					.split(/\r\n|\n|\r/)
+					.map((line) => line.trim())
+					.filter((line) => line.length > 0);
+
+				let upperLimit = defaultMaxNodeMap[target]?.upperLimit ?? defaultMaxNodeMap['']?.upperLimit;
+				let defaultCount = defaultMaxNodeMap[target]?.default ?? defaultMaxNodeMap['']?.default;
+				let ipsResult = ipsPaging(ipsArray, maxNode, page, upperLimit, defaultCount);
+				if (ipsResult?.hasError) {
+					return new Response((ipsResult.message, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }));
+				}
+
+				let html_doc = 'Unknown Error';
+				if (target === base64Decode('djJyYXk')) {
+					// v2ray
+					html_doc = buildLinks(ipsResult?.chunkedIPs, hostName, nodePassword, defaultPort);
+				} else if (target === base64Decode('Y2xhc2g')) {
+					// clash
+					const isCFworkersDomain = hostName.endsWith(base64Decode('d29ya2Vycy5kZXY')) ? true : false;
+					if (isCFworkersDomain) {
+						html_doc = base64Decode(
+							'6K2m5ZGK77ya5L2/55So5Z+f5ZCNI2hvc3ROYW1lI+eUn+aIkOeahGNsYXNo6K6i6ZiF5peg5rOV5L2/55So77yB57uI5q2i5pON5L2c44CC'
+						).replace('#hostName#', hostName);
+						return new Response(html_doc, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+					}
+					let [nodeNames, proxyies] = buildYamls(ipsResult?.chunkedIPs, hostName, nodePassword, defaultPort);
+					let confTemplate = await fetchWebPageContent(CLASH_TEMPLATE_URL);
+					if (nodeNames.length > 0 && proxyies.length > 0) {
+						html_doc = replaceTemplate(confTemplate, {
+							proxies: proxyies.join('\n'),
+							proxy_name: nodeNames.map((ipWithPort) => `      - ${ipWithPort}`).join('\n'),
+						});
+					}
+				} else if (target === base64Decode('c2luZ2JveA')) {
+					// singbox
+					let [_, outbds] = buildJsons(ipsResult?.chunkedIPs, hostName, nodePassword, defaultPort);
+					html_doc = base64Decode('ew0KICAib3V0Ym91bmRzIjogWw0KI291dGJkcyMNCiAgXQ0KfQ').replace('#outbds#', outbds.join(',\n'));
+				}
+				return new Response(html_doc, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+			}
+		default:
+			return new Response('您无相关的权限访问！', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+	}
+}
+
+async function handleWebSocket(request) {
 	const webSocketPair = new WebSocketPair();
 	const [client, webSocket] = Object.values(webSocketPair);
 	webSocket.accept();
+
 	let address = '';
 	let portWithRandomLog = '';
+
 	const log = (info, event) => {
 		console.log(`[${address}:${portWithRandomLog}] ${info}`, event || '');
 	};
+
 	const earlyDataHeader = request.headers.get('sec-websocket-protocol') || '';
 	const readableWebSocketStream = makeReadableWebSocketStream(webSocket, earlyDataHeader, log);
-	let remoteSocketWapper = {
+
+	let remoteSocketWrapper = {
 		value: null,
+		writer: null,
 	};
-	let udpStreamWrite = null;
 
 	readableWebSocketStream
 		.pipeTo(
 			new WritableStream({
 				async write(chunk, controller) {
-					if (udpStreamWrite) {
-						return udpStreamWrite(chunk);
+					if (remoteSocketWrapper.writer) {
+						await remoteSocketWrapper.writer.write(chunk);
+						return;
 					}
-
-					if (remoteSocketWapper.value) {
-						const writer = remoteSocketWapper.value.writable.getWriter();
-						await writer.write(chunk);
-						writer.releaseLock();
+					if (remoteSocketWrapper.value) {
+						remoteSocketWrapper.writer = remoteSocketWrapper.value.writable.getWriter();
+						await remoteSocketWrapper.writer.write(chunk);
 						return;
 					}
 
-					const { hasError, message, addressRemote = '', portRemote = 443, rawClientData } = await parseTr0janHeader(chunk);
-
-					if (hasError) {
-						throw new Error(message);
+					let headerInfo = await parseNaj0rtHeader(chunk, sha224Password);
+					if (!headerInfo || headerInfo.hasError) {
+						log(`Invalid header info: ${headerInfo?.message || 'Unknown error'}`);
 						return;
 					}
-					address = addressRemote;
-					portWithRandomLog = `${portRemote}--${Math.random()} tcp`;
 
-					handleTCPOutBound(remoteSocketWapper, addressRemote, portRemote, rawClientData, webSocket, log);
+					address = headerInfo?.addressRemote;
+					portWithRandomLog = `${headerInfo?.portRemote}--${Math.random()} tcp`;
+
+					handleTCPOutBound(remoteSocketWrapper, address, headerInfo?.portRemote, headerInfo?.rawClientData, webSocket, log);
 				},
 				close() {
 					log(`readableWebSocketStream is closed`);
@@ -289,50 +300,25 @@ async function a1(request) {
 		.catch((err) => {
 			log('readableWebSocketStream pipeTo error', err);
 		});
-	return new Response(null, {
-		status: 101,
-		webSocket: client,
-	});
+
+	return new Response(null, { status: 101, webSocket: client });
 }
 
-async function parseTr0janHeader(buffer) {
-	if (buffer.byteLength < 56) {
-		return {
-			hasError: true,
-			message: 'invalid data',
-		};
-	}
+async function parseNaj0rtHeader(buffer, sha224Password) {
+	if (buffer.byteLength < 56) return { hasError: true, message: 'invalid data' };
 	let crLfIndex = 56;
 	if (new Uint8Array(buffer.slice(56, 57))[0] !== 0x0d || new Uint8Array(buffer.slice(57, 58))[0] !== 0x0a) {
-		return {
-			hasError: true,
-			message: 'invalid header format (missing CR LF)',
-		};
+		return { hasError: true, message: 'invalid header format (missing CR LF)' };
 	}
 	const password = new TextDecoder().decode(buffer.slice(0, crLfIndex));
-	if (password !== sha224Password) {
-		return {
-			hasError: true,
-			message: 'invalid password',
-		};
-	}
+	if (password !== sha224Password) return { hasError: true, message: 'invalid password' };
 
 	const socks5DataBuffer = buffer.slice(crLfIndex + 2);
-	if (socks5DataBuffer.byteLength < 6) {
-		return {
-			hasError: true,
-			message: 'invalid SOCKS5 request data',
-		};
-	}
+	if (socks5DataBuffer.byteLength < 6) return { hasError: true, message: 'invalid SOCKS5 request data' };
 
 	const view = new DataView(socks5DataBuffer);
 	const cmd = view.getUint8(0);
-	if (cmd !== 1) {
-		return {
-			hasError: true,
-			message: 'unsupported command, only TCP (CONNECT) is allowed',
-		};
-	}
+	if (cmd !== 1) return { hasError: true, message: 'unsupported command, only TCP (CONNECT) is allowed' };
 
 	const atype = view.getUint8(1);
 	// 0x01: IPv4 address
@@ -361,22 +347,15 @@ async function parseTr0janHeader(buffer) {
 			address = ipv6.join(':');
 			break;
 		default:
-			return {
-				hasError: true,
-				message: `invalid addressType is ${atype}`,
-			};
+			return { hasError: true, message: `invalid addressType is ${atype}` };
 	}
 
-	if (!address) {
-		return {
-			hasError: true,
-			message: `address is empty, addressType is ${atype}`,
-		};
-	}
+	if (!address) return { hasError: true, message: `address is empty, addressType is ${atype}` };
 
 	const portIndex = addressIndex + addressLength;
 	const portBuffer = socks5DataBuffer.slice(portIndex, portIndex + 2);
 	const portRemote = new DataView(portBuffer).getUint16(0);
+
 	return {
 		hasError: false,
 		addressRemote: address,
@@ -386,77 +365,105 @@ async function parseTr0janHeader(buffer) {
 }
 
 async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawClientData, webSocket, log) {
-	async function connectAndWrite(address, port) {
-		let tcpSocket2 = connect({
-			hostname: address,
-			port: port,
-		});
-		remoteSocket.value = tcpSocket2;
-		// log(`connected to ${address}:${port}`);
-		const writer = tcpSocket2.writable.getWriter();
+	async function connectAndSend(host, port) {
+		const tcpSocket = connect({ hostname: host, port });
+		remoteSocket.value = tcpSocket;
+		log(`connected to ${host}:${port}`);
+		const writer = tcpSocket.writable.getWriter();
 		await writer.write(rawClientData);
 		writer.releaseLock();
-		return tcpSocket2;
+		return tcpSocket;
 	}
-	async function retry() {
-		// 分离landingAddress的host和port端口（支持"域名、IPv4、[IPv6]、域名:端口、IPv4:端口、[IPv6]:端口"）
-		let landingAddressJson = parseLandingAddress(landingAddress);
-		let host = landingAddressJson.host || addressRemote;
-		let port = landingAddressJson.port || portRemote;
 
-		const tcpSocket2 = await connectAndWrite(host, port);
-		tcpSocket2.closed
-			.catch((error) => {
-				console.log('retry tcpSocket closed error', error);
-			})
-			.finally(() => {
-				safeCloseWebSocket(webSocket);
-			});
-		remoteSocketToWS(tcpSocket2, webSocket, null, log);
+	async function retry() {
+		const { address, port } = await resolveTargetAddress(addressRemote, portRemote);
+
+		const tcpSocket = await connectAndSend(address, port);
+		tcpSocket.closed.catch((err) => console.log('retry socket closed error', err)).finally(() => safeCloseWebSocket(ws));
+
+		remoteSocketToWS(tcpSocket, webSocket, null, log);
 	}
-	const tcpSocket2 = await connectAndWrite(addressRemote, portRemote);
-	remoteSocketToWS(tcpSocket2, webSocket, retry, log);
+
+	const tcpSocket = await connectAndSend(addressRemote, portRemote);
+	remoteSocketToWS(tcpSocket, webSocket, retry, log);
 }
 
-function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
-	let readableStreamCancel = false;
+async function resolveTargetAddress(addressRemote, portRemote, serverAddr = parsedLandingAddr) {
+	if (serverAddr?.hostname) {
+		return {
+			address: serverAddr.hostname,
+			port: serverAddr.port || portRemote,
+		};
+	} else {
+		const nat64Address = await getNAT64IPv6Addr(addressRemote);
+		return {
+			address: nat64Address || addressRemote,
+			port: portRemote,
+		};
+	}
+}
+
+async function getNAT64IPv6Addr(addressRemote, prefix = nat64IPv6Prefix) {
+	if (typeof addressRemote !== 'string' || !addressRemote.trim()) return '';
+
+	try {
+		const response = await fetch(`https://1.1.1.1/dns-query?name=${addressRemote}&type=A`, {
+			headers: { Accept: 'application/dns-json' },
+		});
+
+		if (!response.ok) return '';
+		const data = await response.json();
+		const ipv4 = data.Answer?.find((r) => r.type === 1)?.data;
+		if (!ipv4) return '';
+
+		const parts = ipv4.split('.');
+		if (parts.length !== 4) return '';
+
+		const hexParts = parts.map((p) => {
+			const num = Number(p);
+			if (!Number.isInteger(num) || num < 0 || num > 255) return null;
+			return num.toString(16).padStart(2, '0');
+		});
+
+		if (hexParts.includes(null)) return '';
+
+		const ipv6 = `${prefix}${hexParts[0]}${hexParts[1]}:${hexParts[2]}${hexParts[3]}`;
+		return `[${ipv6}]`;
+	} catch {
+		return '';
+	}
+}
+
+function makeReadableWebSocketStream(webSocket, earlyDataHeader, log) {
+	let canceled = false;
+
 	const stream = new ReadableStream({
 		start(controller) {
-			webSocketServer.addEventListener('message', (event) => {
-				if (readableStreamCancel) {
-					return;
-				}
-				const message = event.data;
-				controller.enqueue(message);
+			webSocket.addEventListener('message', (e) => {
+				if (!canceled) controller.enqueue(e.data);
 			});
-			webSocketServer.addEventListener('close', () => {
-				safeCloseWebSocket(webSocketServer);
-				if (readableStreamCancel) {
-					return;
-				}
-				controller.close();
+			webSocket.addEventListener('close', () => {
+				if (!canceled) controller.close();
+				safeCloseWebSocket(webSocket);
 			});
-			webSocketServer.addEventListener('error', (err) => {
-				log('webSocketServer error');
+			webSocket.addEventListener('error', (err) => {
+				log('WebSocket error');
 				controller.error(err);
 			});
+
 			const { earlyData, error } = base64ToArrayBuffer(earlyDataHeader);
-			if (error) {
-				controller.error(error);
-			} else if (earlyData) {
-				controller.enqueue(earlyData);
-			}
+			if (error) controller.error(error);
+			else if (earlyData) controller.enqueue(earlyData);
 		},
-		pull(controller) {},
+
 		cancel(reason) {
-			if (readableStreamCancel) {
-				return;
-			}
-			log(`readableStream was canceled, due to ${reason}`);
-			readableStreamCancel = true;
-			safeCloseWebSocket(webSocketServer);
+			if (canceled) return;
+			canceled = true;
+			log(`ReadableStream canceled: ${reason}`);
+			safeCloseWebSocket(webSocket);
 		},
 	});
+
 	return stream;
 }
 
@@ -466,13 +473,9 @@ async function remoteSocketToWS(remoteSocket, webSocket, retry, log) {
 		.pipeTo(
 			new WritableStream({
 				start() {},
-				/**
-				 * @param {Uint8Array} chunk
-				 * @param {*} controller
-				 */
 				async write(chunk, controller) {
 					hasIncomingData = true;
-					if (webSocket.readyState !== WS_READY_STATE_OPEN) {
+					if (webSocket.readyState !== WebSocket.OPEN) {
 						controller.error('webSocket connection is not open');
 					}
 					webSocket.send(chunk);
@@ -496,36 +499,29 @@ async function remoteSocketToWS(remoteSocket, webSocket, retry, log) {
 }
 
 function base64ToArrayBuffer(base64Str) {
-	if (!base64Str) {
-		return {
-			error: null,
-		};
-	}
+	if (!base64Str) return { earlyData: null, error: null };
 	try {
-		base64Str = base64Str.replace(/-/g, '+').replace(/_/g, '/');
-		const decode = atob(base64Str);
-		const arryBuffer = Uint8Array.from(decode, (c) => c.charCodeAt(0));
-		return {
-			earlyData: arryBuffer.buffer,
-			error: null,
-		};
+		// 标准化 Base64 字符串
+		const normalized = base64Str.replace(/-/g, '+').replace(/_/g, '/');
+		const binaryStr = atob(normalized);
+		const len = binaryStr.length;
+		const buffer = new Uint8Array(len);
+		for (let i = 0; i < len; i++) {
+			buffer[i] = binaryStr.charCodeAt(i);
+		}
+		return { earlyData: buffer.buffer, error: null };
 	} catch (error) {
-		return {
-			error,
-		};
+		return { earlyData: null, error };
 	}
 }
 
-let WS_READY_STATE_OPEN = 1;
-let WS_READY_STATE_CLOSING = 2;
-
-function safeCloseWebSocket(socket) {
+function safeCloseWebSocket(ws, code = 1000, reason = 'Normal Closure') {
 	try {
-		if (socket.readyState === WS_READY_STATE_OPEN || socket.readyState === WS_READY_STATE_CLOSING) {
-			socket.close();
+		if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+			ws.close(code, reason);
 		}
-	} catch (error) {
-		console.error('safeCloseWebSocket error', error);
+	} catch (e) {
+		console.error('Failed close WebSocket', e);
 	}
 }
 
