@@ -1,14 +1,14 @@
 import { connect } from 'cloudflare:sockets';
-const { hash224Encrypt } = require('./sha224');
-const { parseHostPort, ipsPaging } = require('./addressHandle');
-const { fetchGitHubFile, fetchWebPageContent } = require('./crawler');
-const { getBaseConfig, buildLinks, buildYamls, buildJsons } = require('./output');
-const { base64Decode } = require('./base64');
+import { sha224Encrypt } from './sha224.js';
+import { parseHostPort, ipsPaging } from './address.js';
+import { fetchGitHubFile, fetchWebPageContent } from './crawler.js';
+import { getBaseConfig, buildLinks, buildYamls, buildJsons } from './output.js';
+import { base64Decode } from './base64.js';
 
 const landingAddress = '';
-let nat64IPv6Prefix = '2001:67c:2960:6464::';
+let nat64IPv6Prefix = `${["2001", "67c", "2960", "6464"].join(":")}::`;
 const plaintextPassword = 'a1234567';
-let sha224Password = hash224Encrypt(plaintextPassword);
+let sha224Password = sha224Encrypt(plaintextPassword);
 let parsedLandingAddr = { hostname: null, port: null };
 
 // 重定向的域名列表
@@ -28,26 +28,35 @@ const domainList = [
 // 设置环境变量的默认值
 const DEFAULTS = {
 	github: {
-		GITHUB_TOKEN: '', // 令牌
-		GITHUB_OWNER: '', // 仓库所有者
-		GITHUB_REPO: '', // 仓库名称
-		GITHUB_BRANCH: 'main', // 分支名称
-		GITHUB_FILE_PATH: 'README.md', // 文件路径(相对于仓库根目录)
+		// 令牌
+		GITHUB_TOKEN: '',
+		// 仓库所有者
+		GITHUB_OWNER: '',
+		// 仓库名称
+		GITHUB_REPO: '',
+		// 分支名称
+		GITHUB_BRANCH: 'main',
+		// 文件路径(相对于仓库根目录)
+		GITHUB_FILE_PATH: 'README.md',
 	},
 	password: {
 		CONFIG_PASSWORD: '', // 查看节点配置的密码
 		SUB_PASSWORD: '', // 查看节点订阅的密码
 	},
 	urls: {
-		DATA_SOURCE_URL: 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/domain.txt', // 数据源URL
-		CLASH_TEMPLATE_URL: 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/clashTemplate.yaml', // clash模板
+		// 数据源URL
+		DATA_SOURCE_URL: 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/domain.txt',
+		// clash模板
+		CLASH_TEMPLATE_URL: 'https://raw.githubusercontent.com/juerson/cftrojan-tunnel/refs/heads/master/clashTemplate.yaml',
 	},
 };
 // 手动这里设置最大节点数
 const defaultMaxNodeMap = {
 	v2ray: {
-		upperLimit: 2000, // 最大上限
-		default: 300, // 默认值，传入的数据不合法使用它
+		// 最大上限
+		upperLimit: 2000,
+		// 默认值，传入的数据不合法使用它
+		default: 300,
 	},
 	singbox: {
 		upperLimit: 100,
@@ -78,7 +87,7 @@ const worker_default = {
 			let poxyAddr = env.LANDING_ADDRESS || landingAddress;
 			let password = env.PASS_CODE || plaintextPassword;
 
-			if (password !== plaintextPassword) sha224Password = hash224Encrypt(password);
+			if (password !== plaintextPassword) sha224Password = sha224Encrypt(password);
 
 			const url = new URL(request.url);
 			const path = url.pathname;
@@ -240,7 +249,7 @@ async function handleRequest(path, config, nodePassword, defaultMaxNodeMap) {
 				return new Response(html_doc, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 			}
 		default:
-			return new Response('您无相关的权限访问！', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+			return new Response('404 Not Found!', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 	}
 }
 
@@ -472,7 +481,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, retry, log) {
 	await remoteSocket.readable
 		.pipeTo(
 			new WritableStream({
-				start() {},
+				start() { },
 				async write(chunk, controller) {
 					hasIncomingData = true;
 					if (webSocket.readyState !== WebSocket.OPEN) {

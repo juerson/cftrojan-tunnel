@@ -1,11 +1,11 @@
 import { connect } from 'cloudflare:sockets';
-const { hash224Encrypt, isValidSHA224 } = require('./sha224');
-const { parseHostPort } = require('./addressHandle');
+import { sha224Encrypt } from './sha224.js';
+import { parseHostPort } from './address.js';
 
 const landingAddress = '';
-let nat64IPv6Prefix = '2001:67c:2960:6464::';
+let nat64IPv6Prefix = `${["2001", "67c", "2960", "6464"].join(":")}::`;
 const plaintextPassword = 'a1234567';
-let sha224Password = hash224Encrypt(plaintextPassword);
+let sha224Password = sha224Encrypt(plaintextPassword);
 let parsedLandingAddr = { hostname: null, port: null };
 
 const domainList = [
@@ -36,8 +36,7 @@ const worker_default = {
 			let poxyAddr = env.LANDING_ADDRESS || landingAddress;
 			let password = env.PASS_CODE || plaintextPassword;
 
-			if (password !== plaintextPassword) sha224Password = hash224Encrypt(password);
-			if (!isValidSHA224(sha224Password)) throw new Error('sha224Password is not valid');
+			if (password !== plaintextPassword) sha224Password = sha224Encrypt(password);
 
 			const url = new URL(request.url);
 			const path = url.pathname;
@@ -46,16 +45,10 @@ const worker_default = {
 			if (!upgradeHeader || upgradeHeader !== 'websocket') {
 				if (path === '/') {
 					const randomDomain = domainList[Math.floor(Math.random() * domainList.length)];
-					const redirectResponse = new Response('', {
-						status: 301,
-						headers: { Location: randomDomain },
-					});
+					const redirectResponse = new Response('', { status: 301, headers: { Location: randomDomain } });
 					return redirectResponse;
 				} else {
-					return new Response('404 Not Found', {
-						status: 404,
-						headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-					});
+					return new Response('404 Not Found!', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 				}
 			} else {
 				// 仅支持host、[ipv6]、host:port格式
@@ -300,7 +293,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, retry, log) {
 	await remoteSocket.readable
 		.pipeTo(
 			new WritableStream({
-				start() {},
+				start() { },
 				async write(chunk, controller) {
 					hasIncomingData = true;
 					if (webSocket.readyState !== WebSocket.OPEN) {
