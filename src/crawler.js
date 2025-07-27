@@ -7,7 +7,7 @@
  * @param {string} branch - 文件所在的分支名称。
  * @returns {Object} - 包含文件内容和内容类型的对象。如果请求失败，内容为空字符串。
  */
-async function fetchGitHubFile(token, owner, repo, filePath, branch = 'main') {
+export async function fetchGitHubFile(token, owner, repo, filePath, branch = 'main') {
 	const githubUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`;
 	try {
 		const response = await fetch(githubUrl, {
@@ -38,7 +38,7 @@ async function fetchGitHubFile(token, owner, repo, filePath, branch = 'main') {
  * @param {string} ipaddrURL - 要抓取网页的内容
  * @returns {string} - 返回网页的全部内容
  */
-async function fetchWebPageContent(url) {
+export async function fetchWebPageContent(url) {
 	try {
 		const response = await fetch(url);
 		if (response.ok) {
@@ -50,8 +50,3 @@ async function fetchWebPageContent(url) {
 	}
 	return '';
 }
-
-module.exports = {
-	fetchGitHubFile,
-	fetchWebPageContent,
-};

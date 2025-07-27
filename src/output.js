@@ -1,6 +1,6 @@
-const { base64Encode, base64Decode } = require('./base64');
+import { base64Encode, base64Decode } from './base64.js';
 
-function getBaseConfig(pswd, hostName) {
+export function getBaseConfig(pswd, hostName) {
 	const server = 'www.visa.com.sg';
 	const base64Link =
 		'dHJvamFuOi8vI3Bhc3N3b3JkI0AjYWRkcmVzcyM6I3BvcnQjP3NlY3VyaXR5PSNvblRscyMmdHlwZT13cyZob3N0PSNob3N0IyZwYXRoPSUyRiMjYWRkcmVzcyM';
@@ -66,7 +66,7 @@ function getRandomPort(array) {
 }
 
 // 生成v2ray的分享链接
-function buildLinks(ipsArrayChunked, hostName, pswd, defaultPort) {
+export function buildLinks(ipsArrayChunked, hostName, pswd, defaultPort) {
 	let LinkArray = [];
 	const base64Link =
 		'dHJvamFuOi8vI3Bhc3N3b3JkI0AjYWRkcmVzcyM6I3BvcnQjP3NlY3VyaXR5PSNvblRscyMmdHlwZT13cyZob3N0PSNob3N0IyZwYXRoPSUyRiMjcmVtYXJrcyM';
@@ -77,7 +77,7 @@ function buildLinks(ipsArrayChunked, hostName, pswd, defaultPort) {
 		let randomHttpsPort = getRandomPort(HTTPS_WITH_PORTS);
 		let port =
 			([0, ...HTTPS_WITH_PORTS].includes(Number(defaultPort)) && isCFworkersDomain) ||
-			([0, ...HTTP_WITH_PORTS].includes(Number(defaultPort)) && !isCFworkersDomain)
+				([0, ...HTTP_WITH_PORTS].includes(Number(defaultPort)) && !isCFworkersDomain)
 				? isCFworkersDomain
 					? randomHttpPort
 					: randomHttpsPort
@@ -108,7 +108,7 @@ function buildLinks(ipsArrayChunked, hostName, pswd, defaultPort) {
 }
 
 // 生成clash的代理名称和proxyies值的节点信息
-function buildYamls(ipsArrayChunked, hostName, pswd, defaultPort) {
+export function buildYamls(ipsArrayChunked, hostName, pswd, defaultPort) {
 	let proxyies = [];
 	let nodeNames = [];
 	const base64Yaml =
@@ -120,7 +120,7 @@ function buildYamls(ipsArrayChunked, hostName, pswd, defaultPort) {
 		let randomHttpsPortElement = getRandomPort(HTTPS_WITH_PORTS);
 		let port =
 			([0, ...HTTPS_WITH_PORTS].includes(Number(defaultPort)) && isCFworkersDomain) ||
-			([0, ...HTTP_WITH_PORTS].includes(Number(defaultPort)) && !isCFworkersDomain)
+				([0, ...HTTP_WITH_PORTS].includes(Number(defaultPort)) && !isCFworkersDomain)
 				? isCFworkersDomain
 					? randomHttpPortElement
 					: randomHttpsPortElement
@@ -146,7 +146,7 @@ function buildYamls(ipsArrayChunked, hostName, pswd, defaultPort) {
 }
 
 // 生成sing-box的代理名称和outbounds值的节点信息
-function buildJsons(ipsArrayChunked, hostName, pswd, defaultPort) {
+export function buildJsons(ipsArrayChunked, hostName, pswd, defaultPort) {
 	let outbds = [];
 	let nodeNames = []; // 后续可以构建完整的订阅，这里省略后的，可以删除
 	const base64Json =
@@ -158,7 +158,7 @@ function buildJsons(ipsArrayChunked, hostName, pswd, defaultPort) {
 		let randomHttpsPortElement = getRandomPort(HTTPS_WITH_PORTS);
 		let port =
 			([0, ...HTTPS_WITH_PORTS].includes(Number(defaultPort)) && isCFworkersDomain) ||
-			([0, ...HTTP_WITH_PORTS].includes(Number(defaultPort)) && !isCFworkersDomain)
+				([0, ...HTTP_WITH_PORTS].includes(Number(defaultPort)) && !isCFworkersDomain)
 				? isCFworkersDomain
 					? randomHttpPortElement
 					: randomHttpsPortElement
@@ -182,10 +182,3 @@ function buildJsons(ipsArrayChunked, hostName, pswd, defaultPort) {
 	}
 	return [nodeNames, outbds];
 }
-
-module.exports = {
-	getBaseConfig,
-	buildLinks,
-	buildYamls,
-	buildJsons,
-};

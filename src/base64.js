@@ -7,7 +7,7 @@
  * @param {*} str
  * @returns
  */
-function base64Encode(str) {
+export function base64Encode(str) {
 	let encoder = new TextEncoder();
 	let bytes = encoder.encode(str);
 	let binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('');
@@ -15,14 +15,9 @@ function base64Encode(str) {
 }
 
 // base64解密
-function base64Decode(base64Str) {
+export function base64Decode(base64Str) {
 	let binary = atob(base64Str);
 	let bytes = new Uint8Array([...binary].map((char) => char.charCodeAt(0)));
 	let decoder = new TextDecoder();
 	return decoder.decode(bytes);
 }
-
-module.exports = {
-	base64Encode,
-	base64Decode,
-};
