@@ -1,13 +1,16 @@
 {
-  "name": "cftrojan-tunnel-worker",
-  "version": "0.2.0",
-  "private": true,
-  "scripts": {
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev"
-  },
-  "dependencies": {
-    "js-sha256": "^0.11.0"
-  }
+	"name": "cftrojan-tunnel-worker",
+	"version": "0.2.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"deploy": "npm run build && wrangler deploy _worker.js",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"build": "node build.js"
+	},
+	"devDependencies": {
+		"esbuild": "^0.25.8",
+		"terser": "^5.43.1"
+	}
 }

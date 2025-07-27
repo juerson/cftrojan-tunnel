@@ -39,7 +39,7 @@
 - 使用例子
 
 ```
-https://a.abc.workers.dev/config?pwd=123  # 假如123是CF后台中，环境变量CONFIG_PASSWORD设置的值
+https://worker.username.workers.dev/config?pwd=123  # 假如123是CF后台中，环境变量CONFIG_PASSWORD设置的值
 ```
 
 ### 三、订阅版，怎么使用订阅：
@@ -56,30 +56,31 @@ https://a.abc.workers.dev/config?pwd=123  # 假如123是CF后台中，环境变�
 #### 1、v2ray订阅，使用例子：
 
 ```
-https://a.abc.workers.dev/sub?pwd=123456&target=v2ray                    # 第一页的trojan节点
-https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&page=2              # 翻页，存在其它页，每页最多1000节点
-https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&port=2053           # 改为其它端口
-https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&host=githu.com  # 修改节点信息中的sni和host值
-https://a.abc.workers.dev/sub?pwd=123456&target=v2ray&page=2&max=200  # 跟其它参数组合
+https://worker.username.workers.dev/sub?pwd=123456&target=v2ray                     # 第一页的trojan节点
+https://worker.username.workers.dev/sub?pwd=123456&target=v2ray&page=2              # 翻页，存在其它页，每页最多1000节点
+https://worker.username.workers.dev/sub?pwd=123456&target=v2ray&port=2053           # 改为其它端口
+https://worker.username.workers.dev/sub?pwd=123456&target=v2ray&host=githu.com      # 修改节点信息中的sni和host值
+https://worker.username.workers.dev/sub?pwd=123456&target=v2ray&page=2&max=200      # 跟其它参数组合
 ```
 
 #### 2、Clash订阅，使用例子：
 
 ```
-https://a.abc.workers.dev/sub?pwd=123456&target=clash                     # 第一页的clash配置
-https://a.abc.workers.dev/sub?pwd=123456&target=clash&page=2              # 翻页，存在其它页，每页最多300节点
-https://a.abc.workers.dev/sub?pwd=123456&target=clash&port=2053           # 改为其它端口
-https://a.abc.workers.dev/sub?pwd=123456&target=clash&host=github.com  # 修改节点信息中的sni和host值
-https://a.abc.workers.dev/sub?pwd=123456&target=clash&page=2&max=200
+https://worker.username.workers.dev/sub?pwd=123456&target=clash                     # 第一页的clash配置
+https://worker.username.workers.dev/sub?pwd=123456&target=clash&page=2              # 翻页，存在其它页，每页最多300节点
+https://worker.username.workers.dev/sub?pwd=123456&target=clash&port=2053           # 改为其它端口
+https://worker.username.workers.dev/sub?pwd=123456&target=clash&host=github.com     # 修改节点信息中的sni和host值
+https://worker.username.workers.dev/sub?pwd=123456&target=clash&page=2&max=200
 ```
 #### 3、Singbox订阅，使用例子：
 
 ```
-https://a.abc.workers.dev/sub?pwd=123456&target=singbox                     # 第一页的singbox配置
-https://a.abc.workers.dev/sub?pwd=123456&target=singbox&page=2              # 翻页，存在其它页，每页最多50节点
-https://a.abc.workers.dev/sub?pwd=123456&target=singbox&port=2053           # 改为其它端口
-https://a.abc.workers.dev/sub?pwd=123456&target=singbox&host=github.com  # 修改节点信息中的sni和host值
-https://a.abc.workers.dev/sub?pwd=123456&target=singbox&page=2&max=30
+https://worker.username.workers.dev/sub?pwd=123456&target=singbox                    # 第一页的singbox配置
+https://worker.username.workers.dev/sub?pwd=123456&target=singbox&page=2             # 翻页，存在其它页，每页最多50节点
+https://worker.username.workers.dev/sub?pwd=123456&target=singbox&port=2053          # 改为其它端口
+https://worker.username.workers.dev/sub?pwd=123456&target=singbox&host=github.com  
+     # 修改节点信息中的sni和host值
+https://worker.username.workers.dev/sub?pwd=123456&target=singbox&page=2&max=30
 ```
 
 
@@ -182,6 +183,21 @@ IPv6地址：
 3、部署时，有几率遇到Error 1101错误，建议将原js代码进行混淆，如果js混淆后，依然无法解决问题，就等开发者遇到该问题且有时间再解决这个问题。
 
 <img src="images\Error 1101.png" />
+
+4、项目可选用 esbuild 和 terser 工具打包代码成"_worker.js"。
+
+```bash
+# 安装依赖
+npm install
+
+# (可选)单独安装 esbuild 和 terser 依赖
+npm install --save-dev esbuild terser
+or
+npm install -D esbuild terser
+
+# 运行构建命令生成部署文件
+npm run build
+```
 
 ### 七、免责声明
 
