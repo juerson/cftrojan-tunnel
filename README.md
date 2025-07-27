@@ -78,8 +78,7 @@ https://worker.username.workers.dev/sub?pwd=123456&target=clash&page=2&max=200
 https://worker.username.workers.dev/sub?pwd=123456&target=singbox                    # 第一页的singbox配置
 https://worker.username.workers.dev/sub?pwd=123456&target=singbox&page=2             # 翻页，存在其它页，每页最多50节点
 https://worker.username.workers.dev/sub?pwd=123456&target=singbox&port=2053          # 改为其它端口
-https://worker.username.workers.dev/sub?pwd=123456&target=singbox&host=github.com  
-     # 修改节点信息中的sni和host值
+https://worker.username.workers.dev/sub?pwd=123456&target=singbox&host=github.com    # 修改节点信息中的sni和host值
 https://worker.username.workers.dev/sub?pwd=123456&target=singbox&page=2&max=30
 ```
 
